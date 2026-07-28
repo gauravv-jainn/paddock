@@ -1,0 +1,11 @@
+node_modules/
+.next/
+next-env.d.ts
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+CLAUDE.local.md
+.claude/settings.local.json
+*.log
