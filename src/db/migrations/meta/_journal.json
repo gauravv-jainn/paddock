@@ -36,6 +36,13 @@
       "when": 1785269138644,
       "tag": "0004_wallets_user_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785269274166,
+      "tag": "0005_steep_overlord",
+      "breakpoints": true
     }
   ]
 }
