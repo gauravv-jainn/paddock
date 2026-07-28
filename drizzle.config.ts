@@ -1,9 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
-const url = process.env["DATABASE_URL"];
-if (!url) {
-  throw new Error("DATABASE_URL is not set. drizzle-kit cannot run without it.");
-}
+// `generate` does not connect; only `migrate`/`push` need real credentials.
+const url = process.env["DATABASE_URL"] ?? "";
 
 export default defineConfig({
   dialect: "postgresql",
