@@ -166,6 +166,18 @@ When a horse is withdrawn after the market has formed but before the race, remai
 > **Source class: third-party guides, NOT bookmakers.** All sixteen attempts to
 > fetch a UK bookmaker's rules page were blocked
 > (`docs/sources/BLOCKED-bookmakers.txt`). O4 in `docs/08` is still open.
+>
+> **`docs/09` §3.3 reaches a different conclusion** — that the secondary sources
+> are too unreliable to fix the boundaries and this table should stay blocked.
+> It reasoned from a source set including one claiming 55p at evens. The four
+> sources here are unanimous at **45p** for evens, and `docs/09` §3.2
+> independently confirms the 2/1 error that made the old table wrong. This table
+> is therefore published as the best evidenced reading, flagged, and **still not
+> bookmaker-confirmed**. `docs/09` §4's "do not implement" is respected: no code
+> reads this table — `src/modules/settlement/` does not exist.
+>
+> Where they disagree at evens (45p here, `docs/09` reports `docs/05`'s old 50p
+> without challenge), **the disagreement is unresolved and is logged as O6.**
 
 The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
 `_den`. `runners.withdrawn_at_odds` is display and analytics only and is

@@ -304,6 +304,10 @@ Revisit only when a primary bookmaker source is reachable.
 | O3 | Written confirmation from the data provider that a paper-trading platform is permitted under their terms | Phase 1 |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
 | ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
+| O6 | **The evens band.** `docs/05` §5.1 now says 45p, unanimous across four sources. `docs/09` §3.3 reports the old 50p without challenge and cites a fifth source claiming 55p. Three readings of one band; the settling bookmaker's table decides. | S8 |
+| O7 | **Does Rule 4 apply to the place part of an each-way bet?** `docs/09` §3.4.1 says yes, to both parts. `docs/05` §3.3 is silent. Not implemented, not decided. | S9 |
+| O8 | **Early withdrawal — void or deduct?** `docs/09` §3.4.2: a withdrawal before race-day morning voids and the market reforms, with no Rule 4; only race-day withdrawals deduct. Needs a withdrawal timestamp the archive feed may not supply. `docs/05` §5.2 covers only the bet-placed-after-withdrawal case. | S9 |
+| O9 | **Enhanced place terms.** `docs/09` §2.1: marquee meetings commonly pay 5-8 places as a commercial promotion. Any golden vector from such a race settles differently from the real bookmaker. `docs/09` recommends excluding them; not decided. | S7 |
 
 O1 and O4 are the ones that determine whether this product is correct. Neither
 can be delegated, and no amount of tooling substitutes for them.
