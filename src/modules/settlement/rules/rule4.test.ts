@@ -3,8 +3,11 @@ import { compareFractions, type Fraction } from "./fraction";
 import { lookupRule4Band, RULE4_TABLE } from "./rule4";
 
 const f = (num: number, den: number): Fraction => ({ num, den });
-const deductionAt = (num: number, den: number): number =>
-  lookupRule4Band(f(num, den)).deduction;
+function deductionAt(num: number, den: number): number {
+  const r = lookupRule4Band(f(num, den));
+  if (!r.ok) throw new Error(`expected a band for ${num}/${den}: ${r.reason}`);
+  return r.band.deduction;
+}
 
 describe("the table itself", () => {
   it("has nineteen rows with unique deductions", () => {
@@ -177,5 +180,34 @@ describe("the lookup does not divide", () => {
     const a = f(20001, 10000);
     const b = f(20003, 10000);
     expect(compareFractions(a, b)).toBe(-1);
+  });
+});
+
+describe("prices the published scale does not describe — docs/08 D22", () => {
+  it("refuses rather than throwing, and never invents a neighbouring band", () => {
+    // 49/50 lies between 20/21 (top of the 50p band) and Evens (floor of 45p);
+    // 37/12 lies between 3/1 and 16/5. The Tattersalls scale is defined over
+    // rungs of the ladder and simply does not cover these.
+    for (const [num, den] of [
+      [49, 50],
+      [37, 12],
+    ] as const) {
+      const r = lookupRule4Band(f(num, den));
+      expect(r.ok, `${num}/${den} should not resolve`).toBe(false);
+      if (!r.ok) expect(r.reason).toMatch(/between two published bands/);
+    }
+  });
+
+  it("a refusal is NOT a zero deduction", () => {
+    // The failure that would matter: treating "no band" as 0p pays out in
+    // full on a race that owed a deduction.
+    const r = lookupRule4Band(f(37, 12));
+    expect(r.ok).toBe(false);
+    expect(r).not.toHaveProperty("band");
+  });
+
+  it("still throws for a non-price, which is programmer error not business", () => {
+    expect(() => lookupRule4Band(f(0, 1))).toThrow(RangeError);
+    expect(() => lookupRule4Band(f(1, 0))).toThrow(RangeError);
   });
 });

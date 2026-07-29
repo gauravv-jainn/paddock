@@ -133,7 +133,11 @@ function resolveRule4(
           "race that owed a deduction",
       };
     }
-    const band = lookupRule4Band(w.fraction);
+    const found = lookupRule4Band(w.fraction);
+    if (!found.ok) {
+      return { ok: false, detail: found.reason };
+    }
+    const band = found.band;
     total += band.deduction;
     bands.push({
       price: formatFraction(w.fraction),

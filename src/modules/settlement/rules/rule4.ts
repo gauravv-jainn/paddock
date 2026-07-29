@@ -289,14 +289,33 @@ export const RULE4_TABLE: RuleTable<Rule4Band> = {
   ],
 };
 
+/** A refusal is a return value, never an exception (docs/08 D14, D22). */
+export type Rule4Lookup =
+  | { ok: true; band: Rule4Band }
+  | { ok: false; reason: string };
+
 /**
  * The band a withdrawn price falls in.
  *
- * Every price resolves — the table is total. The refusal cases in `docs/08` D14
- * (a decimal not on the ladder) and D17 (an ambiguous withdrawal) are about a
- * MISSING fraction, which is settle()'s decision in S9, not this table's.
+ * **The table is NOT total, and that is a property of the published rule, not
+ * a defect here.** Bands are ranges over rungs of the fractional ladder, so
+ * consecutive bands abut only where consecutive rungs happen to be adjacent.
+ * They do not: 20/21 is the top of the 50p band and Evens the floor of the
+ * 45p band, and 49/50 lies between them on no rung at all. Likewise 37/12
+ * (3.083) falls between 3/1 and 16/5.
+ *
+ * Such a price is not a zero deduction — it is a price the rule does not
+ * describe. Guessing a neighbouring band is exactly what `docs/08` D14
+ * abolished, and a silent zero would pay out in full on a race that owed a
+ * deduction. So this refuses, and settle() turns the refusal into
+ * NEEDS_REVIEW.
  */
-export function lookupRule4Band(price: Fraction): Rule4Band {
+export function lookupRule4Band(price: Fraction): Rule4Lookup {
+  if (price.num <= 0 || price.den <= 0) {
+    // Programmer error, not a business outcome: a price is positive.
+    throw new RangeError(`price must be positive, got ${price.num}/${price.den}`);
+  }
+
   for (const band of RULE4_TABLE.rows) {
     const aboveFloor =
       band.from === null ||
@@ -304,13 +323,16 @@ export function lookupRule4Band(price: Fraction): Rule4Band {
         ? compareFractions(price, band.from) > 0
         : compareFractions(price, band.from) >= 0);
     const belowCeiling = band.to === null || compareFractions(price, band.to) <= 0;
-    if (aboveFloor && belowCeiling) return band;
+    if (aboveFloor && belowCeiling) return { ok: true, band };
   }
 
-  // Unreachable: row 1 is open below and row 19 open above, and the bands are
-  // contiguous. Throwing rather than defaulting to 0p — a silent zero here is
-  // a full payout on a race that owed a deduction.
-  throw new Error(
-    `no Rule 4 band for ${price.num}/${price.den} — the table has a hole`,
-  );
+  return {
+    ok: false,
+    reason:
+      `${price.num}/${price.den} falls between two published bands. The ` +
+      `Tattersalls scale is defined over rungs of the fractional ladder and ` +
+      `does not describe this price; assuming the neighbouring band would be ` +
+      `a guess, and assuming zero would pay out in full on a race that owed a ` +
+      `deduction (docs/08 D14).`,
+  };
 }

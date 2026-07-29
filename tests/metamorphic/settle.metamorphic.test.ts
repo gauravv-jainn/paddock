@@ -179,9 +179,15 @@ describe("5. a shorter withdrawn price never yields a smaller deduction", () => 
       fc.property(fractionArb, fractionArb, (a, b) => {
         // Cross multiplication, never division — docs/08 D14.
         fc.pre(a.num * b.den < b.num * a.den);
-        expect(lookupRule4Band(a).deduction).toBeGreaterThanOrEqual(
-          lookupRule4Band(b).deduction,
-        );
+        const la = lookupRule4Band(a);
+        const lb = lookupRule4Band(b);
+        // Scoped to where the function is DEFINED, not weakened: the published
+        // scale covers rungs of the ladder, and a price between two bands has
+        // no deduction to be monotonic about. It refuses (docs/08 D22), and
+        // settle() turns that into NEEDS_REVIEW rather than guessing.
+        fc.pre(la.ok && lb.ok);
+        if (!la.ok || !lb.ok) return;
+        expect(la.band.deduction).toBeGreaterThanOrEqual(lb.band.deduction);
       }),
       { numRuns: 1000 },
     );
