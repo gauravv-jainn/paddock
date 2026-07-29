@@ -31,12 +31,10 @@ written — it changes every expected return.
 - Multi-currency display returns in Phase 2, as a presentation layer over a
   pence ledger, and re-adds the column then. It never touches accounting.
 
-> **Implementation status:** the pence ledger, the `'GBP'` default and the
-> removal of USD from every doc are done (commit `cb59933`, `1cf948a`).
-> **Dropping `users.base_currency` is NOT yet applied** — the column still
-> exists. It needs a migration plus the field removed from
-> `src/modules/identity/schema.ts`. Until that lands, this bullet describes an
-> intent, not the schema.
+> **Implementation status: fully applied.** The pence ledger, the `'GBP'`
+> default and the removal of USD from every doc landed in `cb59933` / `1cf948a`.
+> `users.base_currency` was dropped by migration `0009_sparkling_siren.sql` in
+> `27c41fb`; the column no longer exists.
 
 **Rationale.** Every rule in the settlement domain — Rule 4 deductions, each-way
 fractions, place terms — is expressed in the vocabulary of British bookmaking.
@@ -152,27 +150,22 @@ wallet, so P0-02 was specified and never assigned.
 
 All three in one transaction. A user without a wallet must not be representable.
 
-> **Implementation status — atomicity is NOT yet guaranteed.** `register()` is
-> written as `tx ? run(tx) : getDb().transaction(run)`: it opens a transaction
-> only when no executor is passed, and otherwise assumes the caller already has
-> one open. Drizzle's `Database` and its transaction handle are structurally
-> similar enough that passing a plain `db` type-checks and silently runs every
-> statement in autocommit.
+> **Implementation status: applied.** `register()` previously took
+> `tx?: Executor`, a union including a plain `Database`, so passing `db`
+> type-checked while running every statement in autocommit — and a probe
+> confirmed an orphaned user and wallet survived a failure after the wallet
+> insert.
 >
-> A probe run on 2026-07-29 confirmed the consequence: with `getHouseWallet()`
-> made to fail — which happens *after* the user and wallet inserts — an
-> orphaned user row and wallet survived, with no opening balance. That is
-> exactly the state D8 says must not be representable.
+> The parameter is now `Transaction`. `PgTransaction` carries `rollback`,
+> `setTransaction`, `schema` and `nestedIndex`, which `Database` lacks, so
+> passing `db` is a compile error (`TS2345`) rather than a convention. Omitting
+> the argument opens a transaction.
 >
-> The suite does not catch this. `rolls the whole registration back if any part
-> of it fails` provokes a duplicate-email failure, which occurs on the *first*
-> statement, so there is nothing to roll back either way.
->
-> Fixing it is a decision, not a typo: either narrow the parameter to a
-> transaction handle so a plain `db` cannot be passed, or always open a
-> transaction and rely on drizzle's nested `.transaction()` emitting a
-> SAVEPOINT when one is already open. **S11 must not build on the current
-> behaviour.**
+> The test that claimed to cover this provoked a duplicate-email failure, which
+> lands on the first statement — nothing to roll back either way. It now removes
+> the house wallet so `getHouseWallet()` fails *after* both inserts, and was
+> proven by reverting the signature: one orphaned user row, test fails.
+> (commit `27c41fb`)
 
 The house wallet is seeded by migration and may go arbitrarily negative — there
 is no book to balance and no real liability.
