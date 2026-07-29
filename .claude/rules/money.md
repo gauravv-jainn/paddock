@@ -82,7 +82,13 @@ a given amount without the number being recomputed.
 
 ## Testing
 
-- 100% branch coverage on `settle()`. No waivers.
+- 100% branch coverage on `settle()` **and** a Stryker mutation score of >= 90%
+  over `src/modules/settlement/` (`docs/08` D13, `docs/05` §8). No waivers on
+  either. Coverage says a line ran; only the mutation score says a test would
+  have noticed it returning the wrong answer.
+- Every surviving mutant goes in `tests/mutation-survivors.md` as either a
+  missing golden vector or a justified equivalent mutant. A survivor with no
+  entry fails the gate whatever the score says.
 - Table-driven tests only. One row per scenario.
 - Golden vectors in `tests/golden/` are the source of truth. Tests you write
   yourself do not count as verification of correctness — they count as

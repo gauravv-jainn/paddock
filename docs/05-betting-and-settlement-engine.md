@@ -263,7 +263,66 @@ on result_version increment:
 
 ## 8. Testing strategy
 
-**Bar: 100% branch coverage on `settle()`. No exceptions, no waivers.**
+> Amended by `docs/08-decision-log.md`. Branch coverage alone was the bar here
+> and it was not sufficient — see §8.0.
+
+**Bar: 100% branch coverage on `settle()` AND a Stryker mutation score of
+≥ 90% over `src/modules/settlement/`, with every surviving mutant
+individually reviewed. No exceptions, no waivers on either half.**
+
+### 8.0 Why coverage alone is not the bar
+
+Branch coverage measures which lines ran. It does not measure whether anything
+would have noticed if they returned the wrong answer.
+
+This is not a theoretical concern in this repository. Two tests named
+`rejects an UPDATE on ledger_entries` and `rejects a DELETE on ledger_entries`
+executed the trigger path, reported green, and asserted nothing: they ran
+against an empty table, where a row-level `BEFORE` trigger never fires and the
+statement trivially succeeds. A later audit found five more tests in the same
+class — including a property test that generated only balanced transactions and
+so held no matter what the code under test did, and a "crosses a British Summer
+Time boundary" test that could not detect a local-time implementation because
+the host machine has no DST.
+
+Every one of those had coverage. A mutation score would have caught all of them,
+because a mutation score asks the only question that matters: **if I break this,
+does a test fail?**
+
+`settle()` is the product. It gets the stronger bar.
+
+### 8.0.1 The target, and why 90
+
+| Bar | Verdict |
+|---|---|
+| 100% | Not reachable, and an unreachable bar gets waived. Equivalent mutants exist that no test can kill — reordering independent guard clauses, or `>=` vs `>` at a boundary that validated inputs cannot reach. |
+| 80% | The common default, and too low here. Settlement has on the order of a dozen branches that each decide a payout; 20% surviving is two or three live rules that no vector constrains. |
+| **90%** | High enough that a whole rule cannot go unconstrained, low enough to be honestly achievable, so nobody negotiates it down. |
+
+**The number is not the real bar — the survivor review is.** Every surviving
+mutant is one of exactly two things, and which one must be written down in
+`tests/mutation-survivors.md`:
+
+1. **A missing golden vector.** The mutant changes behaviour on some real race
+   and no fixture covers that race. Fix by adding the vector, not by adding a
+   test that asserts the current output.
+2. **A genuinely equivalent mutant.** The mutant cannot change behaviour for any
+   input the type system and validation permit. Record the argument.
+
+A survivor with no entry is a failure regardless of the score.
+
+### 8.0.2 Scope and mechanics
+
+- Scope is `src/modules/settlement/` only — the rule tables and `settle()`.
+  Running Stryker across the whole codebase is slow and would dilute the signal.
+- The golden vectors in `tests/golden/` are the test set. A mutation score
+  computed against self-authored tests measures self-consistency, which is the
+  same mistake in a different costume.
+- Stryker is **not yet installed**. It arrives with S9, when there is a
+  `settle()` to mutate. Installing it earlier would mutate code that does not
+  exist.
+- CI runs it on changes touching `src/modules/settlement/`. It is too slow for
+  every commit and too important to run only by hand.
 
 ### 8.1 Golden vectors
 Assemble ≥200 historical races with known official settlements from the archive. Required composition:

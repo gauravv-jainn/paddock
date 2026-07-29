@@ -189,7 +189,7 @@ The brief asks for large amounts of glass, dynamic blur, layered depth, subtle r
 
 | Layer | Tool | Bar |
 |---|---|---|
-| Settlement | Vitest, table-driven | **100% branch coverage. Non-negotiable.** ≥200 historical races as golden vectors. |
+| Settlement | Vitest, table-driven + Stryker | **100% branch coverage AND ≥90% mutation score. Non-negotiable.** ≥200 historical races as golden vectors. See `docs/05` §8 — coverage alone proved insufficient. |
 | Ledger invariants | Property-based (fast-check) | For any sequence of operations, ledger sums to zero |
 | Adapters | Recorded provider fixtures | Every documented response shape, including malformed |
 | Integration | Testcontainers + real Postgres | Concurrent bet placement, balance race conditions |

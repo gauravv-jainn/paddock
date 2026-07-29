@@ -30,7 +30,7 @@ The roadmap below optimises for the second.
 |---|---|
 | **1** | Repo, TypeScript strict, Postgres + Drizzle, migrations, CI. Ledger schema with immutability triggers and the balance-invariant test. Auth: email + password only. |
 | **2** | Historical archive ingestion. Racing catalogue tables populated with real UK/IRE meetings. Racecard read model. **No UI beyond raw lists.** |
-| **3** | **The settlement engine.** `settle()` as a pure function. Win, Place, Each-Way. Place-terms table. Rule 4. Dead heats. Non-runners. 200 golden vectors. 100% branch coverage. This week is the entire project. |
+| **3** | **The settlement engine.** `settle()` as a pure function. Win, Place, Each-Way. Place-terms table. Rule 4. Dead heats. Non-runners. 200 golden vectors. 100% branch coverage AND >=90% mutation score (`docs/05` §8). This week is the entire project. |
 | **4** | Bet placement API with idempotency and serialisable transactions. Bet history. Basic analytics: P&L, ROI, strike rate, equity curve. A plain, well-typeset UI — no glass yet. |
 
 **Week 3 is not negotiable and is not compressible.** Everything else in this document is replaceable; the settlement engine is the product. If week 3 slips, weeks 1, 2 and 4 were wasted.
@@ -103,7 +103,9 @@ CONSTRAINTS:
 - Pure function. No I/O, no clock, no randomness.
 - All money as bigint minor units. No floats anywhere.
 - Every rule application recorded in the returned calculation object.
-- 100% branch coverage. Table-driven tests.
+- 100% branch coverage AND a >=90% Stryker mutation score over
+  `src/modules/settlement/`, every survivor recorded. Table-driven tests.
+  Coverage alone is not the bar — see `docs/05` §8.
 
 DO NOT:
 - Add caching, abstraction layers, or provider handling.

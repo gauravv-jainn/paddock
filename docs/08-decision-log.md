@@ -238,6 +238,27 @@ renamed, or promoted into `tests/golden/`.
 
 ---
 
+## D13 — `settle()` is graded by mutation score, not coverage alone.
+
+**Status:** decided. Amends `docs/05` §8.
+
+"100% branch coverage" was the bar and it is not sufficient. The append-only
+trigger tests had coverage and asserted nothing — they ran against an empty
+table, where a row-level trigger never fires. An audit of all 73 tests found six
+more in the same class.
+
+**Resolution:** the bar for `src/modules/settlement/` becomes branch coverage
+**and** a Stryker mutation score of ≥ 90%, with every survivor recorded in
+`tests/mutation-survivors.md` as either a missing golden vector or a justified
+equivalent mutant. A survivor with no entry fails the gate whatever the score.
+
+Rationale for 90 rather than 100 or 80, and the mechanics, are in `docs/05`
+§8.0.1. Stryker is installed in S9, not before — there is nothing to mutate yet.
+
+The Phase 0 gate in `SESSIONS.md` gains this alongside the 200 golden vectors.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
