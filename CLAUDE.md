@@ -41,6 +41,14 @@ pnpm db:generate      # drizzle migration from schema
 pnpm db:migrate
 ```
 
+## Enforcement status
+
+The two hooks in `.claude/settings.json` are **advisory until proven otherwise**
+(`docs/08` D22). They were misconfigured for the whole of Phase 0 and are now
+fixed, but registration is unverified. Run `./scripts/verify-hooks.sh` at the
+start of a session: until the canary reports FIRING, the rules below are held
+by you reading them, not by anything stopping you.
+
 ## Non-negotiable rules
 
 1. **Money is `bigint` minor units — GBP pence** (`docs/08` D1). Never

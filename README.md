@@ -33,12 +33,23 @@ tests/golden/          the grader — you assemble this, not the agent
 
 `CLAUDE.md` and `.claude/rules/` are context, not enforcement — Claude reads
 them and tries to follow them, with no guarantee. The two hooks in
-`.claude/settings.json` run as shell commands at fixed lifecycle events and
-apply regardless of what the model decides. A `PreToolUse` hook exiting with
-code 2 blocks the tool call outright.
+`.claude/settings.json` are meant to close that gap: a `PreToolUse` hook
+exiting with code 2 blocks the tool call outright, regardless of what the model
+decides.
 
 That is why the two rules that must never bend — no commits on red settlement
 tests, no floats in the money path — are hooks rather than instructions.
+
+> **Status: ADVISORY, not yet enforced.** See `docs/08` D22. Both guards were
+> broken for the whole of Phase 0 — the money-path guard was registered on
+> `PostToolUse`, which runs after the write lands and therefore cannot block
+> it, and the commit guard gated on a fixture file that `docs/08` D20 retired.
+> Both scripts are fixed and verified by hand. Whether the harness actually
+> *invokes* them is still unconfirmed: a `SessionStart` canary now records
+> every session start, and `./scripts/verify-hooks.sh` reports it.
+>
+> **Run that first in a new session.** Until it says FIRING, treat this section
+> as intent rather than guarantee.
 
 ## Current phase
 

@@ -396,6 +396,50 @@ principle as never rendering stale odds as live.
 
 ---
 
+## D22 — The hooks were never enforcing. Two faults, both fixed; one unverified.
+
+Resolves O11.
+
+`README.md` describes the two guard scripts as rules that "apply regardless of
+what the model decides", because a `PreToolUse` hook exiting 2 blocks the tool
+call outright. Neither has ever done that.
+
+**Fault A — a design error in the hook configuration.** `guard-money-path.sh`
+was registered on **PostToolUse**, which runs AFTER the write lands. Exit 2
+there rejects a tool call whose effect is already on disk, so it could never
+have blocked anything. Proved: a file containing `.toFixed(` was written into
+`src/modules/settlement/` and the write stood.
+
+It is now **PreToolUse**, and reads the PROPOSED content out of the tool
+payload rather than the file on disk — `tool_input.content` for Write,
+`tool_input.new_string` for Edit, and every `tool_input.edits[].new_string` for
+MultiEdit. Verified by hand across nine payload shapes: it blocks a float in
+each of the three tool shapes including a MultiEdit whose *second* edit is the
+dirty one, and allows clean code, code outside the money path, a malformed
+payload, and a payload with nothing proposed.
+
+**Fault B — the same script would also have missed a MultiEdit entirely**, and
+it read the file off disk, which means it could only ever have judged what was
+already written.
+
+**Registration is still unverified.** A `SessionStart` canary now appends to
+`/tmp/paperhorse-hooks.log`. It can only fire at the start of a session, so it
+will stay silent for the rest of this one — silence today is "not yet
+observed", not proof of failure. `./scripts/verify-hooks.sh` reports the state
+and runs both guards directly.
+
+**Until the canary fires, the enforcement layer is ADVISORY, and `CLAUDE.md`
+and `README.md` say so** rather than claiming a guarantee the project does not
+have. If the next session starts and the log is still empty, the hooks are not
+registered and no script fix will help — that is a harness question, answered
+by `/hooks` in an interactive session.
+
+The wider lesson is the one this project keeps relearning: a check nobody has
+watched fail is not a check. The guards joined the append-only trigger tests,
+the six vacuous tests and the inert commit gate on that list.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
@@ -403,7 +447,7 @@ principle as never rendering stale odds as live.
 | ~~O1~~ | ~~`tests/golden/races.json` — assembled by hand from real results~~ — **superseded by D20**, which replaces hand-computed golden vectors with three layers: the published third-party vectors, metamorphic properties, and differential implementation. Layer 4 (table consensus) was added later. `races.json` is no longer a blocker for S8, S9 or the Phase 0 gate; assembling one later remains the strongest available hardening. | — |
 | O2 | One month of GB/IE archive day files under `ARCHIVE_ROOT` | S6 ingest run |
 | ~~O10~~ | ~~`guard-commit.sh` gates on the retired `races.json`~~ — **fixed.** It now gates on `tests/golden/published.json` and runs `pnpm test:settlement`, which was broadened to cover `src/modules/settlement`, `tests/golden` and `tests/consensus`. Verified: exit 2 with the failing vector named when a vector is broken, exit 0 when green. | — |
-| O11 | **Neither `.claude/settings.json` hook fires in this environment.** Proved twice: a file containing `.toFixed(` was written into `src/modules/settlement/` without the PostToolUse money-path guard blocking it, and a commit went through with a deliberately broken vector while `pnpm test:settlement` was exiting 1. Both scripts are correct when invoked directly — the harness is not invoking them. Run `/hooks` in an interactive `claude` session to confirm registration. Until then the enforcement layer described in `README.md` is advisory, not enforced. | all |
+| ~~O11~~ | ~~Neither hook fires~~ — **resolved by D22** as far as the scripts go: the money-path guard moved to `PreToolUse` and now inspects proposed content. **Registration remains unverified** until the `SessionStart` canary fires; run `./scripts/verify-hooks.sh` at the start of the next session. | all |
 | ~~O3~~ | ~~Written ToS confirmation from the data provider~~ — **closed by D20.** There is no paid provider, so there is nobody to ask. Replaced by the obligation to record the free dataset's licence in `docs/sources/`. | — |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
 | ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
