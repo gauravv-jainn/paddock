@@ -375,6 +375,27 @@ layers. Absolute correctness on archive races is unverified.
 
 ---
 
+## D21 — Low-confidence bands are settled, but marked.
+
+Rule 4 rows 1-9 (90p down to 50p) carry 6/6 table consensus and zero
+third-party computed confirmation. They move the most money and are the least
+independently verified. Rows 17 and 19 are the same, at lower exposure.
+
+Refusing to settle them would leave bets permanently open with no admin panel
+to clear them — worse than settling. So:
+
+- settle() proceeds normally.
+- The calculation object carries evidenceConfidence: 'consensus-only' with the
+  band's source count and computed count, for any band with zero computed
+  confirmation.
+- The settlement detail view states it in words: "This deduction rate is
+  supported by six published sources but has no independent worked example."
+
+The engine tells the user what it knows and what it doesn't. That is the same
+principle as never rendering stale odds as live.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
