@@ -1,14 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
-import { getDb, type Database } from "@/db/client";
+import { getDb, type Executor, type Transaction } from "@/db/client";
 import { OPENING_BALANCE_MINOR, walletService } from "@/modules/wallet";
 import { hashPassword, verifyPassword } from "./password";
 import { sessions, users, type Session, type User } from "./schema";
 import { generateSessionToken, hashIpAddress, hashSessionToken } from "./tokens";
 
-export type Executor =
-  | Database
-  | Parameters<Parameters<Database["transaction"]>[0]>[0];
+export type { Executor, Transaction };
 
 /** Never leaves the module with password_hash attached. */
 export type PublicUser = Omit<User, "passwordHash">;
@@ -101,7 +99,7 @@ function stripPassword(user: User): PublicUser {
 }
 
 async function insertUser(
-  tx: Executor,
+  tx: Transaction,
   values: {
     email: string;
     displayName: string;
@@ -153,13 +151,19 @@ async function insertUser(
  * Creates the user, their wallet, and their opening balance — all three in one
  * transaction (docs/08 D8). A user without a wallet is not representable.
  *
+ * `tx` is a `Transaction`, not an `Executor`, and that is load-bearing. It was
+ * an `Executor` — a union including a plain `Database` — and passing `db`
+ * type-checked while running every statement in autocommit, so a failure after
+ * the wallet insert left an orphaned user behind. The compiler now rejects
+ * that call. Omit the argument and this opens its own transaction.
+ *
  * The opening balance is a balanced pair: £100,000 credited to the new user,
  * the same amount debited from the house wallet. Virtual money is never created
  * from nothing, even at registration.
  */
 async function register(
   input: RegisterInput,
-  tx?: Executor,
+  tx?: Transaction,
 ): Promise<PublicUser> {
   const email = normaliseEmail(input.email);
   if (!email.includes("@")) {
@@ -172,7 +176,7 @@ async function register(
   const displayName = input.displayName?.trim() || deriveHandle(email);
   const explicitHandle = input.handle?.trim();
 
-  const run = async (t: Executor): Promise<PublicUser> => {
+  const run = async (t: Transaction): Promise<PublicUser> => {
     const user = await insertUser(t, {
       email,
       displayName,
@@ -330,7 +334,7 @@ async function revokeAllSessions(userId: string, tx?: Executor): Promise<void> {
 }
 
 export interface IdentityService {
-  register(input: RegisterInput, tx?: Executor): Promise<PublicUser>;
+  register(input: RegisterInput, tx?: Transaction): Promise<PublicUser>;
   authenticate(
     email: string,
     password: string,

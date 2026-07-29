@@ -4,9 +4,10 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { EmailAlreadyRegisteredError, identityService } from "@/modules/identity";
+import { identityService } from "@/modules/identity";
+import { users } from "@/modules/identity/schema";
 import { ledgerEntries, OPENING_BALANCE_MINOR, wallets } from "./schema";
-import { walletService } from "./service";
+import { HouseWalletMissingError, walletService } from "./service";
 
 /**
  * Exercises the two database triggers from docs/04 §3.1 against a real
@@ -68,12 +69,16 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
    * wallets.user_id foreign key holds end to end.
    */
   async function registerUserWithWallet() {
-    const user = await identityService.register(
-      {
-        email: `wallet-${randomUUID()}@example.test`,
-        password: "correct horse battery staple",
-      },
-      db,
+    // register() takes a Transaction, not an Executor — passing `db` no longer
+    // type-checks, which is the fix for the atomicity defect this suite missed.
+    const user = await db.transaction((tx) =>
+      identityService.register(
+        {
+          email: `wallet-${randomUUID()}@example.test`,
+          password: "correct horse battery staple",
+        },
+        tx,
+      ),
     );
     const rows = await db
       .select()
@@ -139,24 +144,51 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
     expect(wallet.currency).toBe("GBP");
   });
 
-  it("rolls the whole registration back if any part of it fails", async () => {
+  it("rolls the whole registration back if a later step fails", async () => {
+    // The failure has to land AFTER the user and wallet inserts. An earlier
+    // version of this test used a duplicate email, which fails on the very
+    // first statement — there was nothing to roll back, so it passed whether
+    // or not register() was atomic.
+    //
+    // Removing the house wallet makes getHouseWallet() throw, which happens
+    // after both inserts.
     const email = `rollback-${randomUUID()}@example.test`;
-    await identityService.register(
-      { email, password: "correct horse battery staple" },
-      db,
-    );
-
     const before = await ledgerRowCount();
-    // Same email: the user insert fails, so the wallet and the opening balance
-    // must not survive it.
-    await expect(
-      identityService.register(
-        { email, password: "correct horse battery staple" },
-        db,
-      ),
-    ).rejects.toThrow(EmailAlreadyRegisteredError);
+    const userWalletsBefore = (
+      await db
+        .select({ id: wallets.id })
+        .from(wallets)
+        .where(eq(wallets.kind, "user"))
+    ).length;
 
-    expect(await ledgerRowCount()).toBe(before);
+    await db.execute(sql`update wallets set kind='void_pool' where kind='house'`);
+    try {
+      await expect(
+        db.transaction((tx) =>
+          identityService.register(
+            { email, password: "correct horse battery staple" },
+            tx,
+          ),
+        ),
+      ).rejects.toThrow(HouseWalletMissingError);
+
+      const orphanedUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email));
+      expect(orphanedUsers).toHaveLength(0);
+
+      const userWalletsAfter = await db
+        .select({ id: wallets.id })
+        .from(wallets)
+        .where(eq(wallets.kind, "user"));
+      expect(userWalletsAfter).toHaveLength(userWalletsBefore);
+      expect(await ledgerRowCount()).toBe(before);
+    } finally {
+      await db.execute(
+        sql`update wallets set kind='house' where id = (select id from wallets where user_id is null and kind='void_pool' order by created_at limit 1)`,
+      );
+    }
   });
 
   it("allows only one house wallet", async () => {

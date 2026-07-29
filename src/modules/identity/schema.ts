@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
-  char,
+
   check,
   customType,
   index,
@@ -40,12 +40,10 @@ export const users = pgTable(
     /** NULL is reserved for future OAuth-only accounts. Phase 0 always sets it. */
     passwordHash: text(),
     role: text().notNull().default("user"),
-    /**
-     * Display only, and in Phase 0 read by nothing (docs/08 D1). Accounting is
-     * GBP pence on the wallet; there is no conversion until Phase 2, and when
-     * it arrives it is a presentation layer that never touches the ledger.
-     */
-    baseCurrency: char({ length: 3 }).notNull().default("GBP"),
+    // No base_currency column: docs/08 D1 drops it for Phase 0. A NOT NULL
+    // DEFAULT column is written on every insert, so "read by nothing" was a
+    // promise rather than a property. Phase 2 re-adds it for display
+    // conversion, which never touches the ledger.
     status: text().notNull().default("active"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

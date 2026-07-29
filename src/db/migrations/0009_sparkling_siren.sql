@@ -1,0 +1,13 @@
+-- Decision log D1 (docs/08-decision-log.md).
+--
+-- Phase 0 is GBP pence end to end with no conversion anywhere. base_currency
+-- was kept as a NOT NULL DEFAULT 'GBP' column that nothing read — but a column
+-- with a default is written on every insert, so "read by nothing" was a promise
+-- someone eventually breaks, not a property the schema enforced.
+--
+-- Phase 2 re-adds it when display conversion arrives. It will never touch
+-- accounting; the ledger stays in pence.
+--
+-- Irreversible in that it discards data, but the discarded data is a constant:
+-- every row held 'GBP'.
+ALTER TABLE "users" DROP COLUMN "base_currency";

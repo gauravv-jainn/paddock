@@ -3,6 +3,20 @@ import postgres from "postgres";
 
 export type Database = ReturnType<typeof drizzle>;
 
+/**
+ * A real transaction handle.
+ *
+ * A plain `Database` is **not** assignable to this — `PgTransaction` carries
+ * `rollback`, `setTransaction`, `schema` and `nestedIndex`, which `Database`
+ * lacks. That structural gap is what lets a signature demand atomicity and have
+ * the compiler enforce it, rather than trusting the caller to have opened a
+ * transaction.
+ */
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+/** Either. For reads and single statements, where atomicity is not at stake. */
+export type Executor = Database | Transaction;
+
 let sql: ReturnType<typeof postgres> | undefined;
 let db: Database | undefined;
 

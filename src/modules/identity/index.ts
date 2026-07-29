@@ -1,4 +1,5 @@
 export { identityService } from "./service";
+export type { Executor, Transaction } from "./service";
 export {
   EmailAlreadyRegisteredError,
   HandleUnavailableError,
