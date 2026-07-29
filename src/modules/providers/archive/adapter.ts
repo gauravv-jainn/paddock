@@ -17,7 +17,19 @@ import type {
   RacingDataProvider,
   RegionCode,
 } from "../types";
-import { parse, parseOddsPrices, parseResult, parseRunner } from "./parse";
+import {
+  dayEnvelopeSchema,
+  oddsSnapshotSchema,
+  parseWith,
+  raceCardSchema,
+  raceResultSchema,
+  REGION_CODES,
+  toRaceResult,
+  toRunner,
+  type DayEnvelope,
+  type MeetingEnvelope,
+  type RaceSummaryEnvelope,
+} from "./parse";
 
 /**
  * The archive adapter — docs/01 §3, Phase 0.
@@ -84,6 +96,18 @@ function encodeMeetingRef(
   return `${region}/${date}/${meetingRef}`;
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function assertIsoDate(value: string, path_: string): void {
+  if (!ISO_DATE.test(value) || Number.isNaN(Date.parse(value))) {
+    throw new ProviderPayloadError(
+      PROVIDER_ID,
+      path_,
+      `expected a YYYY-MM-DD date, got '${value}'`,
+    );
+  }
+}
+
 function decodeRaceRef(raceRef: ProviderRaceRef): DecodedRef {
   const parts = raceRef.split("/");
   if (parts.length !== 4) {
@@ -100,14 +124,14 @@ function decodeRaceRef(raceRef: ProviderRaceRef): DecodedRef {
     string,
   ];
 
-  if (!(parse.REGION_CODES as readonly string[]).includes(region)) {
+  if (!(REGION_CODES as readonly string[]).includes(region)) {
     throw new ProviderPayloadError(
       PROVIDER_ID,
       "raceRef.region",
       `unknown region '${region}'`,
     );
   }
-  parse.isoDate(date, "raceRef.date");
+  assertIsoDate(date, "raceRef.date");
   // Refs become path segments. A '..' or an absolute segment would escape root.
   for (const segment of [meetingRef, raceId]) {
     if (segment.length === 0 || segment.includes("..") || path.isAbsolute(segment)) {
@@ -127,7 +151,7 @@ interface LoadedDay {
   date: IsoDate;
   /** sha256 of the file as it was read. The determinism guarantee. */
   payloadHash: string;
-  meetings: unknown[];
+  envelope: DayEnvelope;
 }
 
 export class ArchiveProvider implements RacingDataProvider {
@@ -149,16 +173,33 @@ export class ArchiveProvider implements RacingDataProvider {
     if (!day) {
       return [];
     }
-    return day.meetings.map((entry, i) =>
-      this.#toMeeting(entry, `meetings[${i}]`, day),
-    );
+    return day.envelope.meetings.map((meeting) => this.#toMeeting(meeting, day));
   }
 
   async getRaceCard(input: { raceRef: ProviderRaceRef }): Promise<RaceCard> {
     const ref = decodeRaceRef(input.raceRef);
     this.#assertRegion(ref.region);
     const { race, racePath, day } = await this.#findRace(ref);
-    return this.#toRaceCard(race, racePath, ref, day);
+
+    const parsed = parseWith(raceCardSchema, race, racePath);
+
+    return {
+      raceRef: encodeRaceRef(ref),
+      meetingRef: encodeMeetingRef(day.region, day.date, ref.meetingRef),
+      name: parsed.name,
+      offTime: parsed.offTime,
+      distanceYards: parsed.distanceYards,
+      raceClass: parsed.raceClass,
+      raceType: parsed.raceType,
+      isHandicap: parsed.isHandicap,
+      ageBand: parsed.ageBand,
+      prizeMinor: parsed.prizeMinor,
+      declaredRunners: parsed.declaredRunners,
+      actualRunners: parsed.actualRunners,
+      status: parsed.status,
+      rule4DeductionPence: parsed.rule4DeductionPence,
+      runners: parsed.runners.map((runner) => toRunner(runner, ref.raceId)),
+    };
   }
 
   /**
@@ -174,13 +215,13 @@ export class ArchiveProvider implements RacingDataProvider {
     if (odds === null || odds === undefined) {
       throw new ProviderNotFoundError(PROVIDER_ID, `${input.raceRef} odds`);
     }
-    const o = parse.object(odds, `${racePath}.odds`);
 
+    const parsed = parseWith(oddsSnapshotSchema, odds, `${racePath}.odds`);
     return {
       raceRef: input.raceRef,
-      capturedAt: parse.isoInstant(o["capturedAt"], `${racePath}.odds.capturedAt`),
-      source: parse.str(o["source"], `${racePath}.odds.source`),
-      prices: parseOddsPrices(o["prices"], `${racePath}.odds.prices`),
+      capturedAt: parsed.capturedAt,
+      source: parsed.source,
+      prices: parsed.prices,
     };
   }
 
@@ -202,9 +243,8 @@ export class ArchiveProvider implements RacingDataProvider {
       return null;
     }
 
-    const parsed = parseResult(
-      result,
-      `${racePath}.result`,
+    const parsed = toRaceResult(
+      parseWith(raceResultSchema, result, `${racePath}.result`),
       ref.raceId,
       day.payloadHash,
     );
@@ -255,7 +295,7 @@ export class ArchiveProvider implements RacingDataProvider {
     date: IsoDate,
     required: boolean,
   ): Promise<LoadedDay | null> {
-    parse.isoDate(date, "date");
+    assertIsoDate(date, "date");
     const file = path.join(this.#root, region, `${date}.json`);
 
     let raw: Buffer;
@@ -286,13 +326,15 @@ export class ArchiveProvider implements RacingDataProvider {
       );
     }
 
-    const doc = parse.object(body, `${region}/${date}.json`);
-    const declaredRegion = parse.oneOf(doc["region"], "region", parse.REGION_CODES);
-    const declaredDate = parse.isoDate(doc["date"], "date");
-    if (declaredRegion !== region || declaredDate !== date) {
-      parse.fail(
+    // Envelope only. A malformed race deeper in the file is caught when that
+    // race is asked for, so one bad card does not make the day unlistable.
+    const envelope = parseWith(dayEnvelopeSchema, body, `${region}/${date}.json`);
+
+    if (envelope.region !== region || envelope.date !== date) {
+      throw new ProviderPayloadError(
+        PROVIDER_ID,
         `${region}/${date}.json`,
-        `file declares ${declaredRegion}/${declaredDate}, which is not where it is filed`,
+        `file declares ${envelope.region}/${envelope.date}, which is not where it is filed`,
       );
     }
 
@@ -300,12 +342,12 @@ export class ArchiveProvider implements RacingDataProvider {
       region,
       date,
       payloadHash: createHash("sha256").update(raw).digest("hex"),
-      meetings: parse.array(doc["meetings"], "meetings"),
+      envelope,
     };
   }
 
   async #findRace(ref: DecodedRef): Promise<{
-    race: Record<string, unknown>;
+    race: RaceSummaryEnvelope;
     racePath: string;
     day: LoadedDay;
   }> {
@@ -314,17 +356,13 @@ export class ArchiveProvider implements RacingDataProvider {
       throw new ProviderNotFoundError(PROVIDER_ID, encodeRaceRef(ref));
     }
 
-    for (const [i, entry] of day.meetings.entries()) {
-      const meeting = parse.object(entry, `meetings[${i}]`);
-      if (parse.str(meeting["meetingRef"], `meetings[${i}].meetingRef`) !== ref.meetingRef) {
+    for (const [i, meeting] of day.envelope.meetings.entries()) {
+      if (meeting.meetingRef !== ref.meetingRef) {
         continue;
       }
-      const races = parse.array(meeting["races"], `meetings[${i}].races`);
-      for (const [j, raceEntry] of races.entries()) {
-        const racePath = `meetings[${i}].races[${j}]`;
-        const race = parse.object(raceEntry, racePath);
-        if (parse.str(race["raceId"], `${racePath}.raceId`) === ref.raceId) {
-          return { race, racePath, day };
+      for (const [j, race] of meeting.races.entries()) {
+        if (race.raceId === ref.raceId) {
+          return { race, racePath: `meetings[${i}].races[${j}]`, day };
         }
       }
     }
@@ -332,116 +370,27 @@ export class ArchiveProvider implements RacingDataProvider {
     throw new ProviderNotFoundError(PROVIDER_ID, encodeRaceRef(ref));
   }
 
-  #toMeeting(value: unknown, meetingPath: string, day: LoadedDay): Meeting {
-    const m = parse.object(value, meetingPath);
-    const meetingRef = parse.str(m["meetingRef"], `${meetingPath}.meetingRef`);
-    const races = parse.array(m["races"], `${meetingPath}.races`);
-
+  #toMeeting(meeting: MeetingEnvelope, day: LoadedDay): Meeting {
     return {
-      meetingRef: encodeMeetingRef(day.region, day.date, meetingRef),
-      trackName: parse.str(m["trackName"], `${meetingPath}.trackName`),
-      countryCode: parse.str(m["countryCode"], `${meetingPath}.countryCode`),
+      meetingRef: encodeMeetingRef(day.region, day.date, meeting.meetingRef),
+      trackName: meeting.trackName,
+      countryCode: meeting.countryCode,
       region: day.region,
-      timezone: parse.str(m["timezone"], `${meetingPath}.timezone`),
+      timezone: meeting.timezone,
       date: day.date,
-      going: parse.nullableStr(m["going"], `${meetingPath}.going`),
-      status: parse.oneOf(
-        m["status"],
-        `${meetingPath}.status`,
-        parse.MEETING_STATUSES,
-      ),
-      races: races.map((entry, j) => {
-        const racePath = `${meetingPath}.races[${j}]`;
-        const race = parse.object(entry, racePath);
-        return {
-          raceRef: encodeRaceRef({
-            region: day.region,
-            date: day.date,
-            meetingRef,
-            raceId: parse.str(race["raceId"], `${racePath}.raceId`),
-          }),
-          name: parse.str(race["name"], `${racePath}.name`),
-          offTime: parse.isoInstant(race["offTime"], `${racePath}.offTime`),
-          status: parse.oneOf(
-            race["status"],
-            `${racePath}.status`,
-            parse.RACE_STATUSES,
-          ),
-        };
-      }),
-    };
-  }
-
-  #toRaceCard(
-    race: Record<string, unknown>,
-    racePath: string,
-    ref: DecodedRef,
-    day: LoadedDay,
-  ): RaceCard {
-    const status = parse.oneOf(
-      race["status"],
-      `${racePath}.status`,
-      parse.RACE_STATUSES,
-    );
-    const runners = parse
-      .array(race["runners"], `${racePath}.runners`)
-      .map((entry, k) =>
-        parseRunner(entry, `${racePath}.runners[${k}]`, ref.raceId),
-      );
-
-    // isHandicap selects the place-terms column and actualRunners selects the
-    // row. Neither is ever defaulted here — a card that does not state the
-    // handicap status is rejected, and a finished race without a starter count
-    // is rejected, because each-way settlement cannot be computed without them.
-    if (race["isHandicap"] === undefined || race["isHandicap"] === null) {
-      parse.fail(
-        `${racePath}.isHandicap`,
-        "required: it selects the each-way place-terms column and must not be assumed",
-      );
-    }
-    const actualRunners = parse.nullableInt(
-      race["actualRunners"],
-      `${racePath}.actualRunners`,
-    );
-    if (status === "RESULT" && actualRunners === null) {
-      parse.fail(
-        `${racePath}.actualRunners`,
-        "required once a race has a result: it selects the each-way place-terms row",
-      );
-    }
-
-    return {
-      raceRef: encodeRaceRef(ref),
-      meetingRef: encodeMeetingRef(day.region, day.date, ref.meetingRef),
-      name: parse.str(race["name"], `${racePath}.name`),
-      offTime: parse.isoInstant(race["offTime"], `${racePath}.offTime`),
-      distanceYards: parse.nullableInt(
-        race["distanceYards"],
-        `${racePath}.distanceYards`,
-      ),
-      raceClass: parse.nullableStr(race["raceClass"], `${racePath}.raceClass`),
-      raceType: parse.nullableOneOf(
-        race["raceType"],
-        `${racePath}.raceType`,
-        parse.RACE_TYPES,
-      ),
-      isHandicap: parse.bool(race["isHandicap"], `${racePath}.isHandicap`),
-      ageBand: parse.nullableStr(race["ageBand"], `${racePath}.ageBand`),
-      prizeMinor: parse.nullableMoneyMinor(
-        race["prizeMinor"],
-        `${racePath}.prizeMinor`,
-      ),
-      declaredRunners: parse.int(
-        race["declaredRunners"],
-        `${racePath}.declaredRunners`,
-      ),
-      actualRunners,
-      status,
-      rule4DeductionPence: parse.rule4Pence(
-        race["rule4DeductionPence"] ?? 0,
-        `${racePath}.rule4DeductionPence`,
-      ),
-      runners,
+      going: meeting.going,
+      status: meeting.status,
+      races: meeting.races.map((race) => ({
+        raceRef: encodeRaceRef({
+          region: day.region,
+          date: day.date,
+          meetingRef: meeting.meetingRef,
+          raceId: race.raceId,
+        }),
+        name: race.name,
+        offTime: race.offTime,
+        status: race.status,
+      })),
     };
   }
 }

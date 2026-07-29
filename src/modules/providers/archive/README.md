@@ -3,7 +3,8 @@
 The archive adapter reads completed historical UK & Ireland meetings from local
 JSON. **You assemble these files.** The adapter will not invent a field it is
 not given — every missing or malformed value is a hard error, by design
-(CLAUDE.md: *no fabricated data*).
+(CLAUDE.md: *no fabricated data*). Validation is Zod, in
+`src/modules/providers/archive/parse.ts`.
 
 ## Layout
 
@@ -61,7 +62,7 @@ this adapter — nothing outside `src/modules/providers/` may parse it.
               "stallDraw": 5,                    // or null
               "horse": {
                 "name": "Charyn",
-                "countryCode": "IRE",            // breeding suffix, or null
+                "breedingSuffix": "IRE",         // e.g. IRE/USA/GER, or null
                 "foaledYear": 2020,              // or null
                 "sex": "c",                      // or null
                 "sire": null,
@@ -120,10 +121,18 @@ selects the row of the place-terms table. Required as soon as `status` is
 input from which a Rule 4 deduction can be computed. Required whenever a runner
 has `status: "WITHDRAWN"`.
 
+## `breedingSuffix` is not a country code
+
+`meeting.countryCode` is a real ISO-3166-1 alpha-2 country (`GB`, `IE`).
+`horse.breedingSuffix` is a three-letter breeding suffix (`IRE`, `USA`, `GER`)
+and is not a country at all. They were both called `countryCode` until
+docs/08 D6 separated them.
+
 ## Money and odds
 
-- Money (`prizeMinor`) is a **digit string in minor units**, never a JSON
-  number. JSON numbers are IEEE-754 doubles and money never touches a float.
+- Money (`prizeMinor`) is a **digit string in minor units** — **GBP pence**,
+  per docs/08 D1 — never a JSON number. JSON numbers are IEEE-754 doubles and
+  money never touches a float.
 - Odds are decimal JSON numbers greater than 1. They are multipliers only and
   never hold money. Fractional and American forms are display concerns.
 

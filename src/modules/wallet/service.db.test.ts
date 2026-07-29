@@ -4,8 +4,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { identityService } from "@/modules/identity";
-import { ledgerEntries } from "./schema";
+import { EmailAlreadyRegisteredError, identityService } from "@/modules/identity";
+import { ledgerEntries, OPENING_BALANCE_MINOR, wallets } from "./schema";
 import { walletService } from "./service";
 
 /**
@@ -49,6 +49,11 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
     await db.execute(
       sql`truncate table ledger_entries, wallets, sessions, users cascade`,
     );
+    // The truncate above takes the house wallet with it. Migration 0008 seeds
+    // it, and registration cannot credit an opening balance without it.
+    await db.execute(
+      sql`insert into wallets (kind, currency) values ('house', 'GBP')`,
+    );
   });
 
   afterAll(async () => {
@@ -56,12 +61,13 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
   });
 
   /**
-   * wallets.user_id has a real foreign key to users, so a user wallet needs a
-   * real user. Created through the identity module's public interface — the
-   * sanctioned cross-module path, and the only thing that proves the FK holds
-   * end to end.
+   * Registration creates the user, their wallet and their opening balance in
+   * one transaction (docs/08 D8), so this reads the wallet back rather than
+   * creating one. Going through the identity module's public interface is the
+   * sanctioned cross-module path and the only thing that proves the
+   * wallets.user_id foreign key holds end to end.
    */
-  async function createUserWallet() {
+  async function registerUserWithWallet() {
     const user = await identityService.register(
       {
         email: `wallet-${randomUUID()}@example.test`,
@@ -69,12 +75,19 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
       },
       db,
     );
-    return walletService.createWallet({ kind: "user", userId: user.id }, db);
+    const rows = await db
+      .select()
+      .from(wallets)
+      .where(eq(wallets.userId, user.id))
+      .limit(1);
+    const wallet = rows[0];
+    if (!wallet) throw new Error("registration did not create a wallet");
+    return { user, wallet };
   }
 
   /** A balanced pair, so the table is guaranteed non-empty. */
   async function postBalancedPair(amount: bigint) {
-    const a = await walletService.createWallet({ kind: "house" }, db);
+    const a = await walletService.createWallet({ kind: "void_pool" }, db);
     const b = await walletService.createWallet({ kind: "void_pool" }, db);
     const txnId = randomUUID();
     await walletService.postTransaction(
@@ -98,7 +111,7 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
   }
 
   it("derives a zero balance for a wallet with no entries", async () => {
-    const wallet = await walletService.createWallet({ kind: "house" }, db);
+    const wallet = await walletService.createWallet({ kind: "void_pool" }, db);
     expect(await walletService.getBalance(wallet.id, db)).toBe(0n);
   });
 
@@ -108,31 +121,48 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
     ).rejects.toThrow(/wallets_user_id_users_id_fk/);
   });
 
-  it("writes a balanced transaction and derives both balances", async () => {
-    const user = await createUserWallet();
-    const house = await walletService.createWallet({ kind: "house" }, db);
+  it("credits the opening balance at registration, from the house", async () => {
+    const house = await walletService.getHouseWallet(db);
+    const houseBefore = await walletService.getBalance(house.id, db);
 
-    await walletService.postTransaction(
-      {
-        txnId: randomUUID(),
-        lines: [
-          {
-            walletId: house.id,
-            amountMinor: -10_000_000n,
-            entryType: "OPENING_BALANCE",
-          },
-          {
-            walletId: user.id,
-            amountMinor: 10_000_000n,
-            entryType: "OPENING_BALANCE",
-          },
-        ],
-      },
+    const { wallet } = await registerUserWithWallet();
+
+    // D2: £100,000 in pence.
+    expect(OPENING_BALANCE_MINOR).toBe(10_000_000n);
+    expect(await walletService.getBalance(wallet.id, db)).toBe(
+      OPENING_BALANCE_MINOR,
+    );
+    // Balanced: the credit came from somewhere, it was not created.
+    expect(await walletService.getBalance(house.id, db)).toBe(
+      houseBefore - OPENING_BALANCE_MINOR,
+    );
+    expect(wallet.currency).toBe("GBP");
+  });
+
+  it("rolls the whole registration back if any part of it fails", async () => {
+    const email = `rollback-${randomUUID()}@example.test`;
+    await identityService.register(
+      { email, password: "correct horse battery staple" },
       db,
     );
 
-    expect(await walletService.getBalance(user.id, db)).toBe(10_000_000n);
-    expect(await walletService.getBalance(house.id, db)).toBe(-10_000_000n);
+    const before = await ledgerRowCount();
+    // Same email: the user insert fails, so the wallet and the opening balance
+    // must not survive it.
+    await expect(
+      identityService.register(
+        { email, password: "correct horse battery staple" },
+        db,
+      ),
+    ).rejects.toThrow(EmailAlreadyRegisteredError);
+
+    expect(await ledgerRowCount()).toBe(before);
+  });
+
+  it("allows only one house wallet", async () => {
+    await expect(
+      walletService.createWallet({ kind: "house" }, db),
+    ).rejects.toThrow(/wallets_house_singleton_key/);
   });
 
   it("rejects an UPDATE on ledger_entries", async () => {
@@ -171,7 +201,7 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
   });
 
   it("rejects an unbalanced set written directly, at COMMIT", async () => {
-    const wallet = await walletService.createWallet({ kind: "house" }, db);
+    const wallet = await walletService.createWallet({ kind: "void_pool" }, db);
     const txnId = randomUUID();
 
     // Bypasses buildEntries on purpose: this asserts the database refuses,
@@ -194,7 +224,7 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
   });
 
   it("defers the balance check to COMMIT, not to each row", async () => {
-    const a = await walletService.createWallet({ kind: "house" }, db);
+    const a = await walletService.createWallet({ kind: "void_pool" }, db);
     const b = await walletService.createWallet({ kind: "void_pool" }, db);
     const txnId = randomUUID();
 
@@ -215,7 +245,7 @@ describe.skipIf(!url)("wallet service against PostgreSQL", () => {
   });
 
   it("permits a multi-row balanced insert inside one transaction", async () => {
-    const a = await walletService.createWallet({ kind: "house" }, db);
+    const a = await walletService.createWallet({ kind: "void_pool" }, db);
     const b = await walletService.createWallet({ kind: "void_pool" }, db);
     const txnId = randomUUID();
 

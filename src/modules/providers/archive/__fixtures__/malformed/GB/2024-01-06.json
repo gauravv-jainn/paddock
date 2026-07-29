@@ -31,7 +31,7 @@
               "stallDraw": 1,
               "horse": {
                 "name": "Test Runner One",
-                "countryCode": "IRE",
+                "breedingSuffix": "IRE",
                 "foaledYear": 2018,
                 "sex": "g",
                 "sire": null,
@@ -55,7 +55,7 @@
               "stallDraw": 2,
               "horse": {
                 "name": "Test Runner Two",
-                "countryCode": null,
+                "breedingSuffix": null,
                 "foaledYear": 2019,
                 "sex": "m",
                 "sire": null,
@@ -79,7 +79,7 @@
               "stallDraw": 3,
               "horse": {
                 "name": "Test Runner Three",
-                "countryCode": null,
+                "breedingSuffix": null,
                 "foaledYear": 2020,
                 "sex": "f",
                 "sire": null,
@@ -99,7 +99,7 @@
               "stallDraw": 4,
               "horse": {
                 "name": "Test Runner Four",
-                "countryCode": null,
+                "breedingSuffix": null,
                 "foaledYear": 2017,
                 "sex": "g",
                 "sire": null,

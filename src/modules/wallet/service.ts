@@ -24,8 +24,18 @@ export type Executor = Database | Parameters<Parameters<Database["transaction"]>
 
 export interface WalletService {
   createWallet(input: CreateWalletInput, tx?: Executor): Promise<Wallet>;
+  getHouseWallet(tx?: Executor): Promise<Wallet>;
   postTransaction(input: TransactionInput, tx?: Executor): Promise<void>;
   getBalance(walletId: string, tx?: Executor): Promise<bigint>;
+}
+
+export class HouseWalletMissingError extends Error {
+  constructor() {
+    super(
+      "no house wallet: migration 0010 seeds it, so the database is not fully migrated",
+    );
+    this.name = "HouseWalletMissingError";
+  }
 }
 
 function exec(tx?: Executor): Executor {
@@ -44,6 +54,27 @@ async function createWallet(
   const wallet = rows[0];
   if (!wallet) {
     throw new Error("createWallet inserted no row");
+  }
+  return wallet;
+}
+
+/**
+ * The single house wallet — the counterparty to every user credit.
+ *
+ * Seeded by migration 0010, which also carries a unique index restricting the
+ * table to one row with kind='house'. It may go arbitrarily negative: there is
+ * no book to balance and no real liability behind it (docs/08 D8).
+ */
+async function getHouseWallet(tx?: Executor): Promise<Wallet> {
+  const rows = await exec(tx)
+    .select()
+    .from(wallets)
+    .where(eq(wallets.kind, "house"))
+    .limit(1);
+
+  const wallet = rows[0];
+  if (!wallet) {
+    throw new HouseWalletMissingError();
   }
   return wallet;
 }
@@ -90,6 +121,7 @@ async function getBalance(walletId: string, tx?: Executor): Promise<bigint> {
 
 export const walletService: WalletService = {
   createWallet,
+  getHouseWallet,
   postTransaction,
   getBalance,
 };

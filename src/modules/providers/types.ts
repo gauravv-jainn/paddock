@@ -34,8 +34,11 @@ export type MoneyMinor = bigint;
 
 export interface HorseRef {
   name: string;
-  /** Breeding suffix, e.g. 'IRE'. */
-  countryCode: string | null;
+  /**
+   * Breeding suffix, e.g. 'IRE', 'USA'. Not a country code — see docs/08 D6.
+   * `Meeting.countryCode` is a real ISO-3166-1 alpha-2 country; this is not.
+   */
+  breedingSuffix: string | null;
   foaledYear: number | null;
   sex: string | null;
   sire: string | null;

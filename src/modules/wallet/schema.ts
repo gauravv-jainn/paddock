@@ -16,9 +16,13 @@ import {
 /**
  * Wallet module tables — docs/04 §3.
  *
- * Money is BIGINT minor units. There is no balance column and there never will
- * be: balances are derived by summing ledger_entries.amount_minor.
+ * Money is BIGINT minor units — **GBP pence** (docs/08 D1). There is no balance
+ * column and there never will be: balances are derived by summing
+ * ledger_entries.amount_minor.
  */
+
+/** £100,000 in pence — the opening balance every user is credited (docs/08 D2). */
+export const OPENING_BALANCE_MINOR = 10_000_000n;
 
 export const WALLET_KINDS = ["user", "house", "void_pool"] as const;
 
@@ -41,8 +45,13 @@ export const wallets = pgTable(
     // FK to identity.users is added by the S3 migration, once users exists.
     userId: uuid(),
     kind: text().notNull(),
-    /** Accounting currency. Always USD; user-facing currency is display-only. */
-    currency: char({ length: 3 }).notNull().default("USD"),
+    /**
+     * Accounting currency. Always GBP in Phase 0 (docs/08 D1) — the settlement
+     * domain is British bookmaking and every rule in docs/05 is quoted in pence
+     * per pound, so the ledger is denominated in the same unit its rules are.
+     * There is no conversion anywhere in the money path.
+     */
+    currency: char({ length: 3 }).notNull().default("GBP"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

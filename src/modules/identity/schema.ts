@@ -40,7 +40,11 @@ export const users = pgTable(
     /** NULL is reserved for future OAuth-only accounts. Phase 0 always sets it. */
     passwordHash: text(),
     role: text().notNull().default("user"),
-    /** Display only. Accounting currency is USD, on the wallet. */
+    /**
+     * Display only, and in Phase 0 read by nothing (docs/08 D1). Accounting is
+     * GBP pence on the wallet; there is no conversion until Phase 2, and when
+     * it arrives it is a presentation layer that never touches the ledger.
+     */
     baseCurrency: char({ length: 3 }).notNull().default("GBP"),
     status: text().notNull().default("active"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

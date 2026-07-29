@@ -38,7 +38,7 @@ export interface RacecardRunner {
   clothNumber: number;
   stallDraw: number | null;
   horseName: string;
-  horseCountryCode: string | null;
+  horseBreedingSuffix: string | null;
   jockeyName: string | null;
   trainerName: string | null;
   weightLb: number | null;
@@ -180,7 +180,7 @@ export async function getRacecard(
       clothNumber: runners.clothNumber,
       stallDraw: runners.stallDraw,
       horseName: horses.name,
-      horseCountryCode: horses.countryCode,
+      horseBreedingSuffix: horses.breedingSuffix,
       jockeyName: jockeys.name,
       trainerName: trainers.name,
       weightLb: runners.weightLb,

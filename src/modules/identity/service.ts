@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import { getDb, type Database } from "@/db/client";
+import { OPENING_BALANCE_MINOR, walletService } from "@/modules/wallet";
 import { hashPassword, verifyPassword } from "./password";
 import { sessions, users, type Session, type User } from "./schema";
 import { generateSessionToken, hashIpAddress, hashSessionToken } from "./tokens";
@@ -98,42 +100,44 @@ function stripPassword(user: User): PublicUser {
   return rest;
 }
 
-async function register(
-  input: RegisterInput,
-  tx?: Executor,
-): Promise<PublicUser> {
-  const email = normaliseEmail(input.email);
-  if (!email.includes("@")) {
-    throw new InvalidCredentialsError();
-  }
-
-  const passwordHash = await hashPassword(input.password);
-  const displayName = input.displayName?.trim() || deriveHandle(email);
-  const explicitHandle = input.handle?.trim();
-  const baseHandle = explicitHandle ?? deriveHandle(email);
+async function insertUser(
+  tx: Executor,
+  values: {
+    email: string;
+    displayName: string;
+    passwordHash: string;
+    explicitHandle: string | undefined;
+    baseHandle: string;
+  },
+): Promise<User> {
+  const { email, displayName, passwordHash, explicitHandle, baseHandle } = values;
 
   // A supplied handle is taken or it is not. A derived one may collide with a
   // handle we chose for someone else, so it gets a suffix and another go.
+  //
+  // Each attempt runs in its own SAVEPOINT. A unique violation aborts the
+  // enclosing transaction, so without one the first collision would poison the
+  // wallet writes that follow.
   const attempts = explicitHandle ? 1 : 5;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const handle =
-      attempt === 0 ? baseHandle : `${baseHandle}_${attempt + 1}`;
+    const handle = attempt === 0 ? baseHandle : `${baseHandle}_${attempt + 1}`;
     try {
-      const rows = await exec(tx)
-        .insert(users)
-        .values({ email, handle, displayName, passwordHash })
-        .returning();
-      const user = rows[0];
-      if (!user) {
-        throw new Error("register inserted no row");
-      }
-      return stripPassword(user);
+      return await tx.transaction(async (savepoint) => {
+        const rows = await savepoint
+          .insert(users)
+          .values({ email, handle, displayName, passwordHash })
+          .returning();
+        const user = rows[0];
+        if (!user) {
+          throw new Error("register inserted no row");
+        }
+        return user;
+      });
     } catch (error) {
       if (!isUniqueViolation(error)) {
         throw error;
       }
-      const constraint = constraintOf(error);
-      if (constraint.includes("email")) {
+      if (constraintOf(error).includes("email")) {
         throw new EmailAlreadyRegisteredError(email);
       }
       if (attempt === attempts - 1) {
@@ -143,6 +147,70 @@ async function register(
   }
 
   throw new HandleUnavailableError(baseHandle);
+}
+
+/**
+ * Creates the user, their wallet, and their opening balance — all three in one
+ * transaction (docs/08 D8). A user without a wallet is not representable.
+ *
+ * The opening balance is a balanced pair: £100,000 credited to the new user,
+ * the same amount debited from the house wallet. Virtual money is never created
+ * from nothing, even at registration.
+ */
+async function register(
+  input: RegisterInput,
+  tx?: Executor,
+): Promise<PublicUser> {
+  const email = normaliseEmail(input.email);
+  if (!email.includes("@")) {
+    throw new InvalidCredentialsError();
+  }
+
+  // Hashing is deliberately outside the transaction: scrypt takes ~100ms and
+  // holding a write transaction open for it would be pure lock contention.
+  const passwordHash = await hashPassword(input.password);
+  const displayName = input.displayName?.trim() || deriveHandle(email);
+  const explicitHandle = input.handle?.trim();
+
+  const run = async (t: Executor): Promise<PublicUser> => {
+    const user = await insertUser(t, {
+      email,
+      displayName,
+      passwordHash,
+      explicitHandle,
+      baseHandle: explicitHandle ?? deriveHandle(email),
+    });
+
+    const wallet = await walletService.createWallet(
+      { kind: "user", userId: user.id },
+      t,
+    );
+    const house = await walletService.getHouseWallet(t);
+
+    await walletService.postTransaction(
+      {
+        txnId: randomUUID(),
+        lines: [
+          {
+            walletId: house.id,
+            amountMinor: -OPENING_BALANCE_MINOR,
+            entryType: "OPENING_BALANCE",
+            memo: `opening balance for ${user.id}`,
+          },
+          {
+            walletId: wallet.id,
+            amountMinor: OPENING_BALANCE_MINOR,
+            entryType: "OPENING_BALANCE",
+          },
+        ],
+      },
+      t,
+    );
+
+    return stripPassword(user);
+  };
+
+  return tx ? run(tx) : getDb().transaction(run);
 }
 
 /**

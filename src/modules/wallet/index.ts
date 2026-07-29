@@ -1,10 +1,11 @@
-export { walletService } from "./service";
+export { HouseWalletMissingError, walletService } from "./service";
 export type {
   CreateWalletInput,
   Executor,
   WalletKind,
   WalletService,
 } from "./service";
+export { OPENING_BALANCE_MINOR } from "./schema";
 export {
   InvalidTransactionError,
   UnbalancedTransactionError,

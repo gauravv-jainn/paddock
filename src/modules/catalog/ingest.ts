@@ -73,14 +73,14 @@ async function upsertHorse(db: Executor, horse: HorseRef): Promise<string> {
     .insert(horses)
     .values({
       name: horse.name,
-      countryCode: horse.countryCode,
+      breedingSuffix: horse.breedingSuffix,
       foaledYear: horse.foaledYear,
       sex: horse.sex,
       sire: horse.sire,
       dam: horse.dam,
     })
     .onConflictDoUpdate({
-      target: [horses.name, horses.countryCode, horses.foaledYear],
+      target: [horses.name, horses.breedingSuffix, horses.foaledYear],
       set: { sex: horse.sex, sire: horse.sire, dam: horse.dam },
     })
     .returning({ id: horses.id });

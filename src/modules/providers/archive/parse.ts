@@ -1,160 +1,108 @@
+import { z } from "zod";
 import { ProviderPayloadError } from "../errors";
-import type {
-  HorseRef,
-  MeetingStatus,
-  MoneyMinor,
-  OddsPrice,
-  PersonRef,
-  RaceResult,
-  RaceStatus,
-  RaceType,
-  RegionCode,
-  Runner,
-} from "../types";
+import type { RaceResult, RegionCode, Runner } from "../types";
 
 /**
- * Hand-written validation for archive payloads.
+ * Zod schemas for archive payloads (docs/08 D7).
  *
  * Archive files are untrusted input: they are assembled by hand from
  * historical sources. Every field is checked and a missing one is a hard
- * failure — nothing is defaulted, inferred or filled in with a plausible
+ * failure — nothing is defaulted, inferred, or filled in with a plausible
  * value.
  *
- * (docs/03 §3 nominates Zod for boundary validation. That is a dependency this
- * session was not authorised to add, so the checks are explicit here. Swapping
- * this file for Zod schemas is a mechanical change.)
+ * The schemas are split into three stages rather than validating a whole day
+ * file at once, and that is deliberate: listing a day must not fail because
+ * one race elsewhere in the file is malformed. `dayEnvelopeSchema` covers what
+ * `listMeetings` needs, and the heavier shapes are parsed only when the
+ * corresponding race is actually asked for.
  */
 
 const PROVIDER_ID = "archive" as const;
 
-function fail(path: string, detail: string): never {
-  throw new ProviderPayloadError(PROVIDER_ID, path, detail);
-}
-
-function object(value: unknown, path: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    fail(path, `expected an object, got ${describe(value)}`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function describe(value: unknown): string {
-  if (value === null) return "null";
-  if (Array.isArray(value)) return "an array";
-  return typeof value;
-}
-
-function array(value: unknown, path: string): unknown[] {
-  if (!Array.isArray(value)) {
-    fail(path, `expected an array, got ${describe(value)}`);
-  }
-  return value;
-}
-
-function str(value: unknown, path: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    fail(path, `expected a non-empty string, got ${describe(value)}`);
-  }
-  return value;
-}
-
-function nullableStr(value: unknown, path: string): string | null {
-  if (value === null || value === undefined) return null;
-  return str(value, path);
-}
-
-function int(value: unknown, path: string): number {
-  if (typeof value !== "number" || !Number.isInteger(value)) {
-    fail(path, `expected an integer, got ${describe(value)}`);
-  }
-  return value;
-}
-
-function nullableInt(value: unknown, path: string): number | null {
-  if (value === null || value === undefined) return null;
-  return int(value, path);
-}
-
-/** Odds are decimal numbers and are multipliers only — they never hold money. */
-function nullableOdds(value: unknown, path: string): number | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 1) {
-    fail(path, `expected a decimal price greater than 1, got ${describe(value)}`);
-  }
-  return value;
-}
-
-function bool(value: unknown, path: string): boolean {
-  if (typeof value !== "boolean") {
-    fail(path, `expected a boolean, got ${describe(value)}`);
-  }
-  return value;
-}
-
-/** Money arrives as a decimal string so no float ever touches it. */
-function nullableMoneyMinor(value: unknown, path: string): MoneyMinor | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== "string" || !/^-?\d+$/.test(value)) {
-    fail(
-      path,
-      `expected minor units as a digit string (money is never a JSON number), got ${describe(value)}`,
-    );
-  }
-  return BigInt(value);
-}
-
-function oneOf<T extends string>(
+/**
+ * Runs a schema, re-throwing a Zod failure as the ProviderPayloadError the rest
+ * of the system already handles. Zod's issue path is prefixed with the caller's
+ * location in the file, so an error still names the offending field — e.g.
+ * `meetings[0].races[1].runners[3].withdrawnAtOdds`.
+ */
+export function parseWith<T>(
+  schema: z.ZodType<T>,
   value: unknown,
-  path: string,
-  allowed: readonly T[],
+  prefix: string,
 ): T {
-  const s = str(value, path);
-  if (!(allowed as readonly string[]).includes(s)) {
-    fail(path, `expected one of ${allowed.join(", ")}, got '${s}'`);
+  const result = schema.safeParse(value);
+  if (result.success) {
+    return result.data;
   }
-  return s as T;
+
+  const issue = result.error.issues[0];
+  const path = [prefix, ...(issue?.path ?? [])]
+    .filter((segment) => segment !== "")
+    .join(".");
+  throw new ProviderPayloadError(
+    PROVIDER_ID,
+    path,
+    issue?.message ?? "invalid payload",
+  );
 }
 
-function nullableOneOf<T extends string>(
-  value: unknown,
-  path: string,
-  allowed: readonly T[],
-): T | null {
-  if (value === null || value === undefined) return null;
-  return oneOf(value, path, allowed);
+// ---------------------------------------------------------------------------
+// Primitives
+// ---------------------------------------------------------------------------
+
+const nonEmptyString = z.string().min(1, "expected a non-empty string");
+
+/** Absent and null both mean "not recorded". */
+function nullable<T extends z.ZodTypeAny>(schema: T) {
+  return schema.nullish().transform((v) => v ?? null);
 }
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const REGION_CODES = ["GB", "IE"] as const satisfies readonly RegionCode[];
 
-export function isoDate(value: unknown, path: string): string {
-  const s = str(value, path);
-  if (!ISO_DATE.test(s) || Number.isNaN(Date.parse(s))) {
-    fail(path, `expected a YYYY-MM-DD date, got '${s}'`);
-  }
-  return s;
-}
+const isoDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "expected a YYYY-MM-DD date")
+  .refine((s) => !Number.isNaN(Date.parse(s)), "expected a YYYY-MM-DD date");
 
-function isoInstant(value: unknown, path: string): string {
-  const s = str(value, path);
-  if (Number.isNaN(Date.parse(s))) {
-    fail(path, `expected an ISO-8601 instant, got '${s}'`);
-  }
-  return s;
-}
+const isoInstantSchema = z
+  .string()
+  .refine((s) => !Number.isNaN(Date.parse(s)), "expected an ISO-8601 instant");
 
-function nullableIsoInstant(value: unknown, path: string): string | null {
-  if (value === null || value === undefined) return null;
-  return isoInstant(value, path);
-}
+/**
+ * Odds are decimal multipliers and never hold money, so a JSON number is the
+ * right representation here — unlike prizeMinor below.
+ */
+const oddsSchema = z
+  .number()
+  .finite()
+  .gt(1, "expected a decimal price greater than 1");
 
-export const REGION_CODES = ["GB", "IE"] as const;
-const MEETING_STATUSES = [
+/**
+ * Money arrives as a digit string so no float ever touches it. A JSON number
+ * is an IEEE-754 double and is rejected outright.
+ */
+const moneyMinorSchema = z
+  .string()
+  .regex(
+    /^-?\d+$/,
+    "expected minor units as a digit string (money is never a JSON number)",
+  )
+  .transform((s) => BigInt(s));
+
+const rule4PenceSchema = z
+  .number()
+  .int()
+  .min(0, "Rule 4 deduction must be 0-90 pence")
+  .max(90, "Rule 4 deduction must be 0-90 pence");
+
+const meetingStatusSchema = z.enum([
   "SCHEDULED",
   "IN_PROGRESS",
   "COMPLETED",
   "ABANDONED",
-] as const satisfies readonly MeetingStatus[];
-const RACE_STATUSES = [
+]);
+
+const raceStatusSchema = z.enum([
   "SCHEDULED",
   "OPEN",
   "SUSPENDED",
@@ -163,173 +111,220 @@ const RACE_STATUSES = [
   "VOID",
   "ABANDONED",
   "POSTPONED",
-] as const satisfies readonly RaceStatus[];
-const RACE_TYPES = [
-  "FLAT",
-  "HURDLE",
-  "CHASE",
-  "NTF",
-  "HARNESS",
-] as const satisfies readonly RaceType[];
-const RUNNER_STATUSES = [
+]);
+
+const raceTypeSchema = z.enum(["FLAT", "HURDLE", "CHASE", "NTF", "HARNESS"]);
+
+const runnerStatusSchema = z.enum([
   "DECLARED",
   "NON_RUNNER",
   "WITHDRAWN",
   "RESERVE",
-] as const;
-const RESULT_STATUSES = [
+]);
+
+const resultStatusSchema = z.enum([
   "RESULT",
   "VOID",
   "ABANDONED",
   "POSTPONED",
   "UNDER_REVIEW",
-] as const;
-const MARKET_TYPES = ["WIN", "PLACE", "EACH_WAY"] as const;
+]);
 
-function rule4Pence(value: unknown, path: string): number {
-  const n = int(value, path);
-  if (n < 0 || n > 90) {
-    fail(path, `Rule 4 deduction must be 0-90 pence, got ${n}`);
-  }
-  return n;
-}
+const marketTypeSchema = z.enum(["WIN", "PLACE", "EACH_WAY"]);
 
-function horse(value: unknown, path: string): HorseRef {
-  const o = object(value, path);
-  return {
-    name: str(o["name"], `${path}.name`),
-    countryCode: nullableStr(o["countryCode"], `${path}.countryCode`),
-    foaledYear: nullableInt(o["foaledYear"], `${path}.foaledYear`),
-    sex: nullableStr(o["sex"], `${path}.sex`),
-    sire: nullableStr(o["sire"], `${path}.sire`),
-    dam: nullableStr(o["dam"], `${path}.dam`),
-  };
-}
+// ---------------------------------------------------------------------------
+// Stage 1 — the day envelope, everything listMeetings needs
+// ---------------------------------------------------------------------------
 
-function person(value: unknown, path: string): PersonRef | null {
-  if (value === null || value === undefined) return null;
-  const o = object(value, path);
-  return { name: str(o["name"], `${path}.name`) };
-}
+/**
+ * Race summaries keep their unknown keys (runners, odds, result) so the later
+ * stages can re-parse the same object without re-reading the file.
+ */
+const raceSummarySchema = z.looseObject({
+  raceId: nonEmptyString,
+  name: nonEmptyString,
+  offTime: isoInstantSchema,
+  status: raceStatusSchema,
+});
 
-export function parseRunner(
-  value: unknown,
-  path: string,
+const meetingEnvelopeSchema = z.looseObject({
+  meetingRef: nonEmptyString,
+  trackName: nonEmptyString,
+  /** A real ISO-3166-1 alpha-2 country, unlike a horse's breeding suffix. */
+  countryCode: nonEmptyString,
+  timezone: nonEmptyString,
+  going: nullable(z.string()),
+  status: meetingStatusSchema,
+  races: z.array(raceSummarySchema),
+});
+
+export const dayEnvelopeSchema = z.object({
+  region: z.enum(REGION_CODES),
+  date: isoDateSchema,
+  meetings: z.array(meetingEnvelopeSchema),
+});
+
+export type DayEnvelope = z.infer<typeof dayEnvelopeSchema>;
+export type MeetingEnvelope = DayEnvelope["meetings"][number];
+export type RaceSummaryEnvelope = MeetingEnvelope["races"][number];
+
+// ---------------------------------------------------------------------------
+// Stage 2 — the full race card
+// ---------------------------------------------------------------------------
+
+const horseSchema = z.object({
+  name: nonEmptyString,
+  /** Breeding suffix, not a country — docs/08 D6. */
+  breedingSuffix: nullable(z.string()),
+  foaledYear: nullable(z.number().int()),
+  sex: nullable(z.string()),
+  sire: nullable(z.string()),
+  dam: nullable(z.string()),
+});
+
+const personSchema = nullable(z.object({ name: nonEmptyString }));
+
+const runnerSchema = z
+  .object({
+    id: nonEmptyString,
+    clothNumber: z.number().int(),
+    stallDraw: nullable(z.number().int()),
+    horse: horseSchema,
+    jockey: personSchema,
+    trainer: personSchema,
+    weightCarriedLb: nullable(z.number().int()),
+    officialRating: nullable(z.number().int()),
+    status: runnerStatusSchema,
+    withdrawnAtOdds: nullable(oddsSchema),
+    startingPrice: nullable(oddsSchema),
+  })
+  .superRefine((runner, ctx) => {
+    // Rule 4 is computed from the price the withdrawn horse was trading at. A
+    // withdrawal without that price cannot be settled, so it is rejected here
+    // rather than producing a silently wrong deduction later.
+    if (runner.status === "WITHDRAWN" && runner.withdrawnAtOdds === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["withdrawnAtOdds"],
+        message:
+          "a WITHDRAWN runner must carry the price it was withdrawn at (Rule 4 input)",
+      });
+    }
+  });
+
+export const raceCardSchema = z
+  .object({
+    raceId: nonEmptyString,
+    name: nonEmptyString,
+    offTime: isoInstantSchema,
+    distanceYards: nullable(z.number().int()),
+    raceClass: nullable(z.string()),
+    raceType: nullable(raceTypeSchema),
+    /**
+     * Never defaulted: it selects the each-way place-terms column. A card that
+     * does not state it is rejected (docs/08 D3).
+     */
+    isHandicap: z.boolean({
+      error:
+        "required: it selects the each-way place-terms column and must not be assumed",
+    }),
+    ageBand: nullable(z.string()),
+    prizeMinor: nullable(moneyMinorSchema),
+    declaredRunners: z.number().int(),
+    actualRunners: nullable(z.number().int()),
+    status: raceStatusSchema,
+    rule4DeductionPence: rule4PenceSchema.nullish().transform((v) => v ?? 0),
+    runners: z.array(runnerSchema),
+  })
+  .superRefine((race, ctx) => {
+    // actual_runners selects the place-terms row. Unknown while the race is
+    // open is fine; unknown once it has a result is a settlement-time crash.
+    if (race.status === "RESULT" && race.actualRunners === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["actualRunners"],
+        message:
+          "required once a race has a result: it selects the each-way place-terms row",
+      });
+    }
+  });
+
+export type ParsedRaceCard = z.infer<typeof raceCardSchema>;
+
+// ---------------------------------------------------------------------------
+// Stage 3 — odds and results
+// ---------------------------------------------------------------------------
+
+export const oddsSnapshotSchema = z.object({
+  capturedAt: isoInstantSchema,
+  source: nonEmptyString,
+  prices: z.array(
+    z.object({
+      runnerId: nonEmptyString,
+      marketType: marketTypeSchema,
+      priceDecimal: oddsSchema,
+    }),
+  ),
+});
+
+export const raceResultSchema = z.object({
+  status: resultStatusSchema,
+  positions: z.array(
+    z.object({
+      runnerId: nonEmptyString,
+      position: z.number().int(),
+      /** Other runnerIds tied at this position. Empty means no dead heat. */
+      deadHeatWith: z
+        .array(nonEmptyString)
+        .nullish()
+        .transform((v) => v ?? []),
+      disqualified: z.boolean(),
+    }),
+  ),
+  nonRunners: z
+    .array(nonEmptyString)
+    .nullish()
+    .transform((v) => v ?? []),
+  rule4DeductionPence: rule4PenceSchema,
+  amendedAt: nullable(isoInstantSchema),
+});
+
+// ---------------------------------------------------------------------------
+// Mapping into the canonical domain model
+// ---------------------------------------------------------------------------
+
+export function toRunner(
+  parsed: z.infer<typeof runnerSchema>,
   raceId: string,
 ): Runner {
-  const o = object(value, path);
-  const status = oneOf(o["status"], `${path}.status`, RUNNER_STATUSES);
-  const withdrawnAtOdds = nullableOdds(
-    o["withdrawnAtOdds"],
-    `${path}.withdrawnAtOdds`,
-  );
-
-  // Rule 4 is computed from the price the withdrawn horse was trading at. A
-  // withdrawal without that price cannot be settled, so it is rejected here
-  // rather than producing a silently wrong deduction later.
-  if (status === "WITHDRAWN" && withdrawnAtOdds === null) {
-    fail(
-      `${path}.withdrawnAtOdds`,
-      "a WITHDRAWN runner must carry the price it was withdrawn at (Rule 4 input)",
-    );
-  }
-
   return {
-    id: str(o["id"], `${path}.id`),
+    id: parsed.id,
     raceId,
-    clothNumber: int(o["clothNumber"], `${path}.clothNumber`),
-    stallDraw: nullableInt(o["stallDraw"], `${path}.stallDraw`),
-    horse: horse(o["horse"], `${path}.horse`),
-    jockey: person(o["jockey"], `${path}.jockey`),
-    trainer: person(o["trainer"], `${path}.trainer`),
-    weightCarriedLb: nullableInt(
-      o["weightCarriedLb"],
-      `${path}.weightCarriedLb`,
-    ),
-    officialRating: nullableInt(o["officialRating"], `${path}.officialRating`),
-    status,
-    withdrawnAtOdds,
-    startingPrice: nullableOdds(o["startingPrice"], `${path}.startingPrice`),
+    clothNumber: parsed.clothNumber,
+    stallDraw: parsed.stallDraw,
+    horse: parsed.horse,
+    jockey: parsed.jockey,
+    trainer: parsed.trainer,
+    weightCarriedLb: parsed.weightCarriedLb,
+    officialRating: parsed.officialRating,
+    status: parsed.status,
+    withdrawnAtOdds: parsed.withdrawnAtOdds,
+    startingPrice: parsed.startingPrice,
   };
 }
 
-export function parseResult(
-  value: unknown,
-  path: string,
+export function toRaceResult(
+  parsed: z.infer<typeof raceResultSchema>,
   raceId: string,
   payloadHash: string,
 ): RaceResult {
-  const o = object(value, path);
-  const positions = array(o["positions"], `${path}.positions`).map(
-    (entry, i) => {
-      const p = object(entry, `${path}.positions[${i}]`);
-      return {
-        runnerId: str(p["runnerId"], `${path}.positions[${i}].runnerId`),
-        position: int(p["position"], `${path}.positions[${i}].position`),
-        deadHeatWith: array(
-          p["deadHeatWith"] ?? [],
-          `${path}.positions[${i}].deadHeatWith`,
-        ).map((r, j) =>
-          str(r, `${path}.positions[${i}].deadHeatWith[${j}]`),
-        ),
-        disqualified: bool(
-          p["disqualified"],
-          `${path}.positions[${i}].disqualified`,
-        ),
-      };
-    },
-  );
-
   return {
     raceId,
-    status: oneOf(o["status"], `${path}.status`, RESULT_STATUSES),
-    positions,
-    nonRunners: array(o["nonRunners"] ?? [], `${path}.nonRunners`).map((r, i) =>
-      str(r, `${path}.nonRunners[${i}]`),
-    ),
-    rule4DeductionPence: rule4Pence(
-      o["rule4DeductionPence"],
-      `${path}.rule4DeductionPence`,
-    ),
-    amendedAt: nullableIsoInstant(o["amendedAt"], `${path}.amendedAt`),
+    status: parsed.status,
+    positions: parsed.positions,
+    nonRunners: parsed.nonRunners,
+    rule4DeductionPence: parsed.rule4DeductionPence,
+    amendedAt: parsed.amendedAt,
     providerPayloadHash: payloadHash,
   };
 }
-
-export function parseOddsPrices(value: unknown, path: string): OddsPrice[] {
-  return array(value, path).map((entry, i) => {
-    const o = object(entry, `${path}[${i}]`);
-    const price = nullableOdds(o["priceDecimal"], `${path}[${i}].priceDecimal`);
-    if (price === null) {
-      fail(`${path}[${i}].priceDecimal`, "a price is required");
-    }
-    return {
-      runnerId: str(o["runnerId"], `${path}[${i}].runnerId`),
-      marketType: oneOf(o["marketType"], `${path}[${i}].marketType`, MARKET_TYPES),
-      priceDecimal: price,
-    };
-  });
-}
-
-export const parse = {
-  object,
-  array,
-  str,
-  nullableStr,
-  int,
-  nullableInt,
-  bool,
-  nullableMoneyMinor,
-  oneOf,
-  nullableOneOf,
-  isoDate,
-  isoInstant,
-  rule4Pence,
-  fail,
-  MEETING_STATUSES,
-  RACE_STATUSES,
-  RACE_TYPES,
-  REGION_CODES,
-};
-
-export type { RegionCode };

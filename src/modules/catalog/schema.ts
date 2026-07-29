@@ -78,8 +78,14 @@ export const horses = pgTable(
   {
     id: uuid().primaryKey().defaultRandom(),
     name: text().notNull(),
-    /** Breeding suffix, e.g. 'IRE', 'USA'. Three characters, unlike tracks. */
-    countryCode: char({ length: 3 }),
+    /**
+     * Breeding suffix, e.g. 'IRE', 'USA', 'GER'. Three characters.
+     *
+     * Named breeding_suffix, not country_code, by docs/08 D6: tracks.country_code
+     * is an ISO-3166-1 alpha-2 country and this is not a country at all. Same
+     * name on adjacent tables was a join waiting to happen.
+     */
+    breedingSuffix: char({ length: 3 }),
     foaledYear: smallint(),
     sex: text(),
     sire: text(),
@@ -90,8 +96,8 @@ export const horses = pgTable(
     // three key columns are nullable, and under Postgres' default NULLS
     // DISTINCT a horse with no breeding suffix or no foaling year would insert
     // a fresh row on every ingestion run instead of matching the existing one.
-    unique("horses_name_country_code_foaled_year_key")
-      .on(t.name, t.countryCode, t.foaledYear)
+    unique("horses_name_breeding_suffix_foaled_year_key")
+      .on(t.name, t.breedingSuffix, t.foaledYear)
       .nullsNotDistinct(),
   ],
 );
@@ -149,13 +155,11 @@ export const races = pgTable(
      * SETTLEMENT INPUT. Selects the handicap or non-handicap column of the
      * place-terms table.
      *
-     * DEFAULT FALSE is carried over from docs/04 §4 and is a hazard: a race
-     * whose handicap status the feed did not supply silently becomes
-     * non-handicap, which pays fewer places on some field sizes. The archive
-     * adapter therefore refuses a racecard that does not state it explicitly,
-     * so the default is never the reason a row has a value.
+     * No default, by docs/08 D3. docs/04 §4 specified DEFAULT FALSE, which
+     * silently turns "the feed did not say" into "not a handicap" and pays a
+     * different number of places on some field sizes. Every insert states it.
      */
-    isHandicap: boolean().notNull().default(false),
+    isHandicap: boolean().notNull(),
     ageBand: text(),
     prizeMinor: bigint({ mode: "bigint" }),
     /** Count at declaration. Not a settlement input. */

@@ -74,7 +74,9 @@ export default async function RacecardPage({
               <td>{runner.stallDraw ?? "—"}</td>
               <td>
                 {runner.horseName}
-                {runner.horseCountryCode ? ` (${runner.horseCountryCode})` : ""}
+                {runner.horseBreedingSuffix
+                  ? ` (${runner.horseBreedingSuffix})`
+                  : ""}
               </td>
               <td>{runner.jockeyName ?? "—"}</td>
               <td>{runner.trainerName ?? "—"}</td>
