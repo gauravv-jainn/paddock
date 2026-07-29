@@ -10,7 +10,7 @@
     "worker": "tsx watch src/worker/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:settlement": "vitest run src/modules/settlement --coverage",
+    "test:settlement": "vitest run src/modules/settlement tests/golden tests/consensus --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
