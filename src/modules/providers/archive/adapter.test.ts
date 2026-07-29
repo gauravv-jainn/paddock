@@ -103,8 +103,23 @@ describe("getRaceCard", () => {
   });
 
   it("refuses a reference that would escape the archive root", async () => {
+    // Four segments each, deliberately. "GB/2024-01-02/../../etc/passwd" splits
+    // into six and is caught by the arity check, so it never reaches the
+    // traversal guard and proved nothing about it.
+    for (const ref of [
+      "GB/2024-01-02/../r1",
+      "GB/2024-01-02/test-course/..",
+      "GB/2024-01-02/..%2F../r1",
+      "GB/2024-01-02//etc/passwd".replace("//etc", "/../etc"),
+    ]) {
+      await expect(provider.getRaceCard({ raceRef: ref })).rejects.toThrow(
+        ProviderPayloadError,
+      );
+    }
+
+    // An absolute segment is the other way out of the root.
     await expect(
-      provider.getRaceCard({ raceRef: "GB/2024-01-02/../../etc/passwd" }),
+      provider.getRaceCard({ raceRef: "GB/2024-01-02/test-course//etc/passwd" }),
     ).rejects.toThrow(ProviderPayloadError);
   });
 });

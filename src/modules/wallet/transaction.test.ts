@@ -6,6 +6,7 @@ import {
   sumByWallet,
   UnbalancedTransactionError,
   type EntryType,
+  type TransactionInput,
   type TransactionLine,
 } from "./transaction";
 
@@ -52,7 +53,10 @@ const balancedTxnArb = fc
   // A balancing line of zero is not writable; the ledger forbids zero amounts.
   .filter(({ lines }) => lines.every((l) => l.amountMinor !== 0n));
 
-/** Arbitrary lines with no zero-sum guarantee — most of these are rejected. */
+/**
+ * Arbitrary lines with no zero-sum guarantee. Most of these must be rejected —
+ * feeding them in is what makes the invariant properties below non-trivial.
+ */
 const arbitraryTxnArb = fc.record({
   txnId: fc.uuid(),
   lines: fc.array(
@@ -64,6 +68,46 @@ const arbitraryTxnArb = fc.record({
     { minLength: 0, maxLength: 6 },
   ),
 });
+
+/**
+ * A balanced set with a zero line spliced in. Adding zero does not change the
+ * sum, so the zero-amount rule is the only thing that can reject these — which
+ * is what makes them a real test of it.
+ */
+const balancedWithZeroLineArb = fc
+  .tuple(balancedTxnArb, walletArb, fc.nat())
+  .map(([txn, walletId, at]) => {
+    const lines = [...txn.lines];
+    lines.splice(at % (lines.length + 1), 0, {
+      walletId,
+      amountMinor: 0n,
+      entryType: ENTRY_TYPE,
+    });
+    return { txnId: txn.txnId, lines };
+  });
+
+const anyTxnArb = fc.oneof(balancedTxnArb, arbitraryTxnArb, balancedWithZeroLineArb);
+
+/**
+ * An independent restatement of the three rules in buildEntries. The tests
+ * below compare buildEntries against this rather than against itself, so a
+ * rule deleted from the implementation shows up as a disagreement.
+ */
+function shouldBeAccepted(txn: TransactionInput): boolean {
+  if (txn.lines.length < 2) return false;
+  if (txn.lines.some((l) => l.amountMinor === 0n)) return false;
+  return txn.lines.reduce((acc, l) => acc + l.amountMinor, 0n) === 0n;
+}
+
+function tryBuild(
+  txn: TransactionInput,
+): { accepted: true; lines: TransactionLine[] } | { accepted: false; error: unknown } {
+  try {
+    return { accepted: true, lines: buildEntries(txn) };
+  } catch (error) {
+    return { accepted: false, error };
+  }
+}
 
 describe("buildEntries", () => {
   it("accepts a balanced transaction unchanged", () => {
@@ -115,72 +159,66 @@ describe("ledger invariant", () => {
    * The property S2 asks for: for any sequence of postTransaction calls, the
    * sum of amount_minor across all wallets is exactly 0n.
    *
-   * Calls that would break it are rejected before any row is written, so the
-   * invariant holds over the accepted subsequence — which is the whole ledger.
+   * The sequence deliberately contains transactions that would break it. If
+   * buildEntries lets one through, `written` no longer sums to zero and this
+   * fails — which is what makes it a test of the invariant rather than of the
+   * generator.
    */
   it("holds over any sequence of accepted transactions", () => {
     fc.assert(
-      fc.property(
-        fc.array(balancedTxnArb, { minLength: 0, maxLength: 40 }),
-        (txns) => {
-          const written: TransactionLine[] = [];
-          for (const txn of txns) {
-            written.push(...buildEntries(txn));
+      fc.property(fc.array(anyTxnArb, { maxLength: 40 }), (txns) => {
+        const written: TransactionLine[] = [];
+        for (const txn of txns) {
+          const result = tryBuild(txn);
+          if (result.accepted) {
+            written.push(...result.lines);
           }
+        }
 
-          const perWallet = sumByWallet(written);
-          let total = 0n;
-          for (const balance of perWallet.values()) {
-            total += balance;
-          }
-          expect(total).toBe(0n);
-        },
-      ),
+        let total = 0n;
+        for (const balance of sumByWallet(written).values()) {
+          total += balance;
+        }
+        expect(total).toBe(0n);
+      }),
       { numRuns: 500 },
     );
   });
 
-  it("holds when unbalanced calls are interleaved and rejected", () => {
+  /**
+   * buildEntries accepts exactly the transactions that satisfy all three rules
+   * — no more, no less — and a rejected one writes nothing.
+   */
+  it("accepts exactly the transactions that satisfy every rule", () => {
     fc.assert(
-      fc.property(
-        fc.array(fc.oneof(balancedTxnArb, arbitraryTxnArb), {
-          minLength: 0,
-          maxLength: 40,
-        }),
-        (txns) => {
-          const written: TransactionLine[] = [];
-          let rejected = 0;
-          for (const txn of txns) {
-            try {
-              written.push(...buildEntries(txn));
-            } catch (error) {
-              // Nothing is written for a rejected transaction.
-              expect(
-                error instanceof UnbalancedTransactionError ||
-                  error instanceof InvalidTransactionError,
-              ).toBe(true);
-              rejected += 1;
-            }
-          }
+      fc.property(anyTxnArb, (txn) => {
+        const expected = shouldBeAccepted(txn);
+        const result = tryBuild(txn);
 
-          let total = 0n;
-          for (const balance of sumByWallet(written).values()) {
-            total += balance;
-          }
-          expect(total).toBe(0n);
-          expect(rejected).toBeGreaterThanOrEqual(0);
-        },
-      ),
-      { numRuns: 500 },
+        expect(result.accepted).toBe(expected);
+        if (result.accepted) {
+          expect(result.lines).toEqual(txn.lines);
+        } else {
+          expect(
+            result.error instanceof UnbalancedTransactionError ||
+              result.error instanceof InvalidTransactionError,
+          ).toBe(true);
+        }
+      }),
+      { numRuns: 1000 },
     );
   });
 
+  /**
+   * A zero-amount line is never written. The generator splices zeros into
+   * otherwise-balanced sets, so the sum is still zero and only the
+   * zero-amount rule can catch them.
+   */
   it("never writes a zero-amount entry", () => {
     fc.assert(
-      fc.property(balancedTxnArb, (txn) => {
-        for (const line of buildEntries(txn)) {
-          expect(line.amountMinor).not.toBe(0n);
-        }
+      fc.property(balancedWithZeroLineArb, (txn) => {
+        expect(txn.lines.some((l) => l.amountMinor === 0n)).toBe(true);
+        expect(() => buildEntries(txn)).toThrow(InvalidTransactionError);
       }),
       { numRuns: 500 },
     );

@@ -46,9 +46,17 @@ describe("verifyPassword", () => {
   });
 
   it("treats unicode-equivalent passwords as equal", async () => {
-    // NFD 'é' vs NFC 'é' — the same password typed on two keyboards.
-    const hash = await hashPassword("passwordcaféxx");
-    expect(await verifyPassword("passwordcaféxx", hash)).toBe(true);
+    // The same password typed on two keyboards: NFD is 'e' + U+0301
+    // combining acute; NFC is the single codepoint U+00E9. Written as
+    // escapes on purpose — as literal characters this test is one editor
+    // "format on save" away from comparing two identical strings and
+    // proving nothing.
+    const nfd = "passwordcafe\u0301xx";
+    const nfc = "passwordcaf\u00e9xx";
+    expect(nfd).not.toBe(nfc);
+
+    expect(await verifyPassword(nfc, await hashPassword(nfd))).toBe(true);
+    expect(await verifyPassword(nfd, await hashPassword(nfc))).toBe(true);
   });
 
   it("returns false rather than throwing on a malformed stored hash", async () => {

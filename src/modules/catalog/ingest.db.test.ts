@@ -57,6 +57,30 @@ describe.skipIf(!url)("archive ingestion", () => {
 
   const provider = createArchiveProvider({ root: ARCHIVE_ROOT });
 
+  async function rowCounts() {
+    const [row] = await db.execute<{
+      meetings: string;
+      races: string;
+      runners: string;
+      horses: string;
+      tracks: string;
+    }>(sql`
+      select
+        (select count(*) from meetings)::text as meetings,
+        (select count(*) from races)::text    as races,
+        (select count(*) from runners)::text  as runners,
+        (select count(*) from horses)::text   as horses,
+        (select count(*) from tracks)::text   as tracks
+    `);
+    return {
+      meetings: Number(row?.meetings ?? 0),
+      races: Number(row?.races ?? 0),
+      runners: Number(row?.runners ?? 0),
+      horses: Number(row?.horses ?? 0),
+      tracks: Number(row?.tracks ?? 0),
+    };
+  }
+
   it("writes meetings, races and runners", async () => {
     const report = await ingestRange(
       { provider, from: "2024-01-02", to: "2024-01-02", regions: ["GB"] },
@@ -71,14 +95,33 @@ describe.skipIf(!url)("archive ingestion", () => {
   });
 
   it("is idempotent — re-running the same range does not duplicate rows", async () => {
-    await ingestRange(
-      { provider, from: "2024-01-02", to: "2024-01-02", regions: ["GB"] },
-      db,
-    );
+    // Self-contained on purpose. This used to depend on the previous test
+    // having ingested: run alone it was a *first* run, and one meeting with two
+    // races is exactly what a first run produces, so it passed without
+    // re-running anything.
+    const range = {
+      provider,
+      from: "2024-01-02",
+      to: "2024-01-02",
+      regions: ["GB"] as const,
+    };
 
-    const meetings = await listMeetings(undefined, db);
-    expect(meetings).toHaveLength(1);
-    expect(meetings[0]?.races).toHaveLength(2);
+    await ingestRange({ ...range, regions: ["GB"] }, db);
+    const after1 = await rowCounts();
+
+    await ingestRange({ ...range, regions: ["GB"] }, db);
+    const after2 = await rowCounts();
+
+    expect(after2).toEqual(after1);
+    // And the counts are what the fixture actually contains, so a run that
+    // silently wrote nothing at all cannot satisfy this either.
+    expect(after1).toEqual({
+      meetings: 1,
+      races: 2,
+      runners: 6,
+      horses: 6,
+      tracks: 1,
+    });
   });
 
   it("carries the settlement inputs through to the catalogue", async () => {

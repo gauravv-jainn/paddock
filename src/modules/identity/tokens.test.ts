@@ -32,7 +32,8 @@ describe("hashSessionToken", () => {
     const hash = hashSessionToken(token);
     expect(hash).toBe(hashSessionToken(token));
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
-    expect(hash).not.toContain(token);
+    // No `not.toContain(token)` here: the hex assertion above already makes it
+    // unfalsifiable, since a base64url token is not a substring of hex.
   });
 
   it("differs for different tokens", () => {
