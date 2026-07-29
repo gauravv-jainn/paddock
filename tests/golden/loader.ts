@@ -181,3 +181,17 @@ export function unsettleableUnderD14(suite: PublishedSuite): LoadedVector[] {
       v.race.withdrawnAtFraction === undefined,
   );
 }
+
+/**
+ * Vectors that exercise docs/08 D16 — Rule 4 applied to BOTH parts of an
+ * each-way bet. That is the intersection of EACH_WAY and a non-zero deduction.
+ *
+ * Currently empty, and that is a known coverage gap rather than a property:
+ * every harvested Rule 4 example happened to be a win single. D16 changes real
+ * money and no published example pins it, so S7 must add one.
+ */
+export function vectorsCoveringD16(suite: PublishedSuite): LoadedVector[] {
+  return suite.all.filter(
+    (v) => v.bet.type === "EACH_WAY" && (v.race.rule4Pence ?? 0) > 0,
+  );
+}

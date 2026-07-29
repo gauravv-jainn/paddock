@@ -91,6 +91,38 @@ status:
 
 **Model each-way as two `bet_legs` rows in the schema, not as a special case in the settlement code.** This keeps `settle()` small and makes the audit trail self-explanatory.
 
+### 3.3.1 Rule 4 applies to BOTH parts — docs/08 D16
+
+This section used to be silent on it, and silence here is a payout bug.
+
+An each-way bet is two bets. Rule 4 reduces the winnings of **any** winning bet
+struck at pre-withdrawal prices. The place part is such a bet, so **its winnings
+are reduced too** — at the same pence-in-the-pound rate, applied to the place
+part's own winnings *after* the place fraction, and never to returned stake.
+
+```
+win part:    winnings = unit x (odds - 1)
+             winnings = winnings x (100 - r4) / 100
+place part:  winnings = unit x ((odds - 1) x placeFraction)
+             winnings = winnings x (100 - r4) / 100     <-- D16. The same rate.
+```
+
+The order is `.claude/rules/money.md`'s and does not change:
+
+1. place fraction
+2. dead-heat divisor
+3. Rule 4
+4. round **once**, at the very end — not once per part
+
+Applying Rule 4 only to the win part overpays every each-way bet on a Rule 4
+race. On a £10 e/w at 4/1 with a 40p deduction and 1/5 terms, the place part's
+winnings are £8; deducting gives £4.80, not deducting gives £8. The error is
+silent, it is in the user's favour, and it is wrong.
+
+**No golden vector covers this.** None of the 27 in `tests/golden/published.json`
+is both `EACH_WAY` and Rule 4 — verified, not assumed. D16 is therefore
+**unverified by fixture** and S7 must add one.
+
 ---
 
 ## 4. Each-way place terms
@@ -126,6 +158,26 @@ VERIFY: DISPUTED — handicap 12-15. theracelab publishes "8-15 runners = 1/5",
 | 8–11 | handicap | 3 | 1/5 |
 | 12–15 | handicap | 3 | 1/4 |
 | 16+ | handicap | 4 | 1/4 |
+
+### 4.0 Enhanced terms override the table — docs/08 D18
+
+Marquee races (Grand National meeting, Cheltenham, Royal Ascot, the Ebor, the
+Stewards' Cup, the Lincoln) commonly carry commercially enhanced terms — five,
+six, seven or eight places. **These are promotions, not rule changes**, so they
+do not belong in the table above.
+
+`races.enhanced_places` and `races.enhanced_fraction` are the override:
+
+| State | Meaning |
+|---|---|
+| both null | standard terms from the table above |
+| both set | those terms apply **verbatim**; the table is not consulted |
+| one set, one null | **constraint violation** — the database rejects it |
+
+A race that ran under an enhanced offer is **excluded from `tests/golden/`**
+unless its real terms are recorded on the fixture. A fixture settled at standard
+terms for a race the bookmaker paid six places on is not a golden vector; it is
+a wrong answer with a citation.
 
 ```ts
 interface PlaceTerms { places: number; fraction: number }
@@ -194,7 +246,7 @@ The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
 | 7 | 8/13 – 4/7 | 4 / 7 | 8 / 13 | 60p ⚠️ |
 | 8 | 4/5 – 4/6 | 4 / 6 | 4 / 5 | 55p ⚠️ |
 | 9 | 20/21 – 5/6 | 5 / 6 | 20 / 21 | 50p |
-| 10 | Evens – 6/5 | 1 / 1 | 6 / 5 | 45p |
+| 10 | Evens – 6/5 | 1 / 1 | 6 / 5 | **45p** 🔴 |
 | 11 | 5/4 – 6/4 | 5 / 4 | 6 / 4 | 40p |
 | 12 | 8/5 – 7/4 | 8 / 5 | 7 / 4 | 35p |
 | 13 | 9/5 – 9/4 | 9 / 5 | 9 / 4 | 30p |
@@ -207,6 +259,23 @@ The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
 
 Rows 1–8 are odds-on and read "shorter than" downward; rows 9–19 read upward.
 Both ends are inclusive.
+
+#### 🔴 Row 10 is the HIGHEST RISK row in this table — docs/08 D19
+
+Three readings of the evens band exist, and they were found in three places:
+
+| Candidate | Source | Weight |
+|---|---|---|
+| **45p** ← adopted | four unanimous secondary sources (geegeez, bettingsites, nonrunnerstoday, horseracingnonrunners) | strongest available |
+| 50p | the previous `docs/05` §5.1 | unsourced |
+| 55p | one source cited by `docs/09` §3.3 | single, and that source omits the 85p band entirely and looks offset by one step across the short-price range |
+
+D19 **decides** 45p. It does not **resolve** the disagreement — O6 stays open.
+
+Evens is one of the most common withdrawal prices in racing, so an error here
+is a recurring settlement error rather than an edge case. **This is the single
+row that most needs a primary source.** If only one line of a bookmaker's table
+is ever checked, check this one.
 
 ```
 VERIFY: rows 1-6 and 9-19 — unanimous across four independent sources.

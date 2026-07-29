@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   loadPublishedVectors,
   unsettleableUnderD14,
+  vectorsCoveringD16,
   type LoadedVector,
 } from "./loader";
 
@@ -112,5 +113,32 @@ describe("docs/08 D14 — the Rule 4 lookup input is a fraction", () => {
     for (const v of givenDeduction) {
       expect(unsettleableUnderD14(suite)).not.toContain(v);
     }
+  });
+});
+
+describe("docs/08 D16 — Rule 4 on both each-way parts", () => {
+  /**
+   * A tripwire, not a property. D16 says the place part takes the same
+   * deduction as the win part, and NOTHING in this fixture set exercises it:
+   * all 7 Rule 4 examples are win singles, all 11 each-way examples are on
+   * races with no withdrawal.
+   *
+   * When S7 adds a vector that does cover it, this fails — and whoever adds it
+   * should delete this test, having read docs/05 §3.3.1 on the way past. That
+   * is the intended outcome, not a regression.
+   */
+  it("is currently uncovered — a known gap, recorded so it cannot rot", () => {
+    const covering = vectorsCoveringD16(suite);
+    expect(covering.map((v) => v.id)).toEqual([]);
+  });
+
+  it("has each-way and Rule 4 vectors, just never together", () => {
+    // Guards the tripwire above from passing for the wrong reason: it must be
+    // empty because the intersection is empty, not because a category is.
+    const ew = suite.all.filter((v) => v.bet.type === "EACH_WAY");
+    const r4 = suite.all.filter((v) => (v.race.rule4Pence ?? 0) > 0);
+    expect(ew.length).toBeGreaterThan(0);
+    expect(r4.length).toBeGreaterThan(0);
+    expect(r4.every((v) => v.bet.type === "WIN")).toBe(true);
   });
 });

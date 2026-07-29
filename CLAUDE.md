@@ -83,6 +83,12 @@ exported service interface, never by querying another module's tables directly.
 - **One module per session.** Do not touch files outside the module named in
   the task without asking.
 - **Do not add dependencies without asking.**
+- **Never `git add -A` a file you have not read.** Stage explicitly, or read it
+  first. Committing an unread file means putting your name on content you
+  cannot vouch for — and in this repo it has already happened once: `docs/09`
+  was committed sight-unseen in `2ef6f50`, and it turned out to contradict work
+  in the same commit. `git status` before staging; if something is there you
+  did not put there, read it before it goes in.
 - **Do not create abstraction layers, plugin registries, caching, or
   configuration systems that the current task does not require.** If you think
   one is needed, say so and wait — do not build it speculatively.

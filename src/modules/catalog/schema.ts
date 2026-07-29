@@ -174,6 +174,21 @@ export const races = pgTable(
      */
     actualRunners: smallint(),
     status: text().notNull().default("scheduled"),
+    /**
+     * SETTLEMENT INPUT when set — commercially enhanced each-way terms
+     * (docs/08 D18). Marquee races pay five to eight places as a promotion,
+     * which is not a rule change and so does not belong in the docs/05 §4
+     * table.
+     *
+     * Both null: standard terms. Both set: those terms apply verbatim and the
+     * table is not consulted. One without the other is rejected by a check
+     * constraint — half an override is not a term.
+     *
+     * enhanced_fraction is the DENOMINATOR of the place fraction: 4 means 1/4,
+     * 5 means 1/5. Integer, so the fraction never becomes a float.
+     */
+    enhancedPlaces: smallint(),
+    enhancedFraction: smallint(),
     /** Increments on a stewards' amendment; drives re-settlement. */
     resultVersion: integer().notNull().default(0),
     rule4Pence: smallint().notNull().default(0),
@@ -192,6 +207,15 @@ export const races = pgTable(
     // Deliberate addition to docs/04 §4. Without it a race can carry
     // status='result' and a null actual_runners, and each-way settlement has
     // no place-terms row to look up.
+    // D18: both columns or neither.
+    check(
+      "races_enhanced_terms_complete",
+      sql`(${t.enhancedPlaces} is null) = (${t.enhancedFraction} is null)`,
+    ),
+    check(
+      "races_enhanced_terms_sane",
+      sql`${t.enhancedPlaces} is null or (${t.enhancedPlaces} > 0 and ${t.enhancedFraction} > 0)`,
+    ),
     check(
       "races_result_requires_actual_runners",
       sql`${t.status} <> 'result' or ${t.actualRunners} is not null`,

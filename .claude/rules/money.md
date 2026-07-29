@@ -88,6 +88,34 @@ Silently closing a gap in the band table is not hypothetical: doing exactly
 that is what put a ten-row error into `docs/05` §5.1, where every band from
 "Evens" upward was one rung too severe.
 
+### Early vs late withdrawal — the same refusal, `docs/08` D17
+
+A withdrawal before the market reformed voids; one after it deducts. The
+archive may not carry a withdrawal timestamp, so decide from what the row
+carries and **refuse when it carries nothing**:
+
+| `runners.status` | fraction or announced deduction? | settle() |
+|---|---|---|
+| `non_runner` | — | straight VOID, full refund, no deduction |
+| `withdrawn` | yes | late withdrawal → apply Rule 4 |
+| `withdrawn` | **neither** | **REFUSE** — flag the race, record why |
+
+```ts
+// WRONG — "no deduction recorded" is not the same as "no deduction applies"
+if (!runner.rule4Pence) return settleWithoutDeduction(bet);
+
+// RIGHT — an ambiguous withdrawal is a question, not a zero
+if (runner.status === "withdrawn" &&
+    runner.withdrawnAtFractionNum === null &&
+    race.rule4Pence === 0) {
+  return needsReview("withdrawn runner with no price and no announced deduction");
+}
+```
+
+Third refusal in the same shape as D14's and `capabilities.deadHeatFlags`. The
+pattern is deliberate: **when the data cannot answer the question, the engine
+says so.** It never picks the convenient reading.
+
 ## Rule tables
 
 The place-terms and Rule 4 tables live in `src/modules/settlement/rules/` as
@@ -109,7 +137,12 @@ This order is load-bearing. Do not reorder:
 4. Determine outcome from `finish_position` against places paid.
 5. Apply dead-heat divisor.
 6. Apply Rule 4 to **winnings only** — never to the returned stake.
-7. Round once.
+   **On an each-way bet this means BOTH parts** (`docs/08` D16): the place
+   part's winnings, computed after the place fraction, take the same
+   pence-in-the-pound deduction as the win part's. Deducting only from the win
+   part overpays every each-way bet on a Rule 4 race, silently and in the
+   user's favour.
+7. Round once — **once for the whole bet**, not once per each-way part.
 8. Emit ledger entries.
 
 ## Required output

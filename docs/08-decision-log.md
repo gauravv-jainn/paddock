@@ -295,6 +295,59 @@ Revisit only when a primary bookmaker source is reachable.
 
 ---
 
+## D16 — Rule 4 applies to both parts of an each-way bet. (Resolves O7)
+
+An each-way bet is two bets. Rule 4 reduces the winnings of any winning bet
+struck at pre-withdrawal prices. The place part is such a bet, so its winnings
+are reduced too — at the same pence-in-the-pound rate, applied to the place
+part's own winnings after the place fraction, never to returned stake.
+
+docs/05 §3.3 is silent on this and must say it explicitly. Order stays as
+.claude/rules/money.md: place fraction first, then dead-heat divisor, then
+Rule 4, then round once.
+
+---
+
+## D17 — Early withdrawal voids; late withdrawal deducts. (Resolves O8)
+
+If the market reformed after a withdrawal, bets struck afterwards carry no
+deduction. This needs a withdrawal timestamp the archive may not supply.
+
+Follow D14's pattern rather than inventing one:
+- runners.status already distinguishes non_runner from withdrawn.
+- A withdrawn runner carrying a fraction or an announced deduction is a late
+  withdrawal: Rule 4 applies.
+- A withdrawn runner with neither is ambiguous. REFUSE to auto-settle the
+  race, flag it, record why. Do not assume either way.
+- non_runner remains a straight void with no deduction.
+
+---
+
+## D18 — Enhanced place terms are opt-in per race. (Resolves O9)
+
+Marquee races carry commercially enhanced terms that are not rule changes.
+
+- races gains enhanced_places and enhanced_fraction, both nullable.
+- Null means standard terms from the docs/05 §4 table.
+- Both set means those terms apply verbatim.
+- One set without the other is a constraint violation.
+- Any historical race that ran under an enhanced offer is EXCLUDED from
+  tests/golden/ unless the real terms are recorded on the fixture.
+
+---
+
+## D19 — Adopt the four-source reading at evens. Flag it. (O6 stays open)
+
+Four unanimous secondary sources beat one dissenting secondary source and my
+own unsourced table. The evens band takes the four-source value.
+
+But three readings existed, and the disagreement is not resolved — only
+decided. docs/05 §5.1 marks this row HIGHEST RISK with all three candidate
+values recorded inline. It is the single row that most needs a primary source,
+and O6 stays open until one is read.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
@@ -304,10 +357,10 @@ Revisit only when a primary bookmaker source is reachable.
 | O3 | Written confirmation from the data provider that a paper-trading platform is permitted under their terms | Phase 1 |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
 | ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
-| O6 | **The evens band.** `docs/05` §5.1 now says 45p, unanimous across four sources. `docs/09` §3.3 reports the old 50p without challenge and cites a fifth source claiming 55p. Three readings of one band; the settling bookmaker's table decides. | S8 |
-| O7 | **Does Rule 4 apply to the place part of an each-way bet?** `docs/09` §3.4.1 says yes, to both parts. `docs/05` §3.3 is silent. Not implemented, not decided. | S9 |
-| O8 | **Early withdrawal — void or deduct?** `docs/09` §3.4.2: a withdrawal before race-day morning voids and the market reforms, with no Rule 4; only race-day withdrawals deduct. Needs a withdrawal timestamp the archive feed may not supply. `docs/05` §5.2 covers only the bet-placed-after-withdrawal case. | S9 |
-| O9 | **Enhanced place terms.** `docs/09` §2.1: marquee meetings commonly pay 5-8 places as a commercial promotion. Any golden vector from such a race settles differently from the real bookmaker. `docs/09` recommends excluding them; not decided. | S7 |
+| O6 | **The evens band — HIGHEST RISK row in the table.** Three readings exist: 45p (four unanimous sources, adopted by D19), 50p (the old unsourced `docs/05`), 55p (one source cited by `docs/09` §3.3). D19 **decides** the value; it does not **resolve** the disagreement. Stays open until a primary source is read. | S8 |
+| ~~O7~~ | ~~Rule 4 on the place part of an each-way bet~~ — **resolved by D16.** It applies to both parts. | — |
+| ~~O8~~ | ~~Early withdrawal: void or deduct~~ — **resolved by D17.** Decided by what the row carries, and ambiguity refuses rather than assumes. | — |
+| ~~O9~~ | ~~Enhanced place terms~~ — **resolved by D18.** Opt-in per race, both columns or neither, excluded from `tests/golden/` unless the real terms are recorded. | — |
 
 O1 and O4 are the ones that determine whether this product is correct. Neither
 can be delegated, and no amount of tooling substitutes for them.
