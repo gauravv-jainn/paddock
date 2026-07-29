@@ -1,0 +1,27 @@
+FETCH LOG — Rule 4 sources that could not be retrieved
+DATE: 2026-07-29
+
+  beginners-betting-guide.com/rule-4-deductions/4551299134
+      WebFetch: "unable to get local issuer certificate" on both http and https,
+      with and without the www host.
+      curl --http2: PROTOCOL_ERROR (err 1).
+      curl --http1.1: HTTP 200, 4697 bytes — but the body is a JavaScript
+      redirect stub titled "Redirecting..." carrying an ad-block detector, not
+      the article. No table is present in what the server returns.
+      REQUESTED BY THE USER as a third source for this session; it could not be
+      obtained, so the consensus tally below runs on six sources, not seven.
+
+  help.williamhill.com/hc/en-gb/articles/30177704423837-Rule-4-Deduction-Explained
+      403. A bookmaker's own help centre, and the closest this project has come
+      to a primary source. Still blocked, so O4 stays open.
+
+  racingtv.com/betting-guides/what-is-rule-4
+      200 but JS-gated; the response contains only the site header.
+
+WHAT IS STILL MISSING
+
+No worked example with an ODDS-ON withdrawn horse was found anywhere. Rows 1-9
+(90p down to 50p) therefore have table consensus but ZERO third-party computed
+numbers. That is not surprising — an odds-on horse being withdrawn late is rare,
+so guides do not use it as their teaching example — but it means the most
+severe deductions in the table are the least evidenced by computation.

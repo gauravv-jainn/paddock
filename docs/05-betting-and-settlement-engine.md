@@ -251,7 +251,7 @@ The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
 | 12 | 8/5 – 7/4 | 8 / 5 | 7 / 4 | 35p |
 | 13 | 9/5 – 9/4 | 9 / 5 | 9 / 4 | 30p |
 | 14 | 12/5 – 3/1 | 12 / 5 | 3 / 1 | 25p |
-| 15 | 16/5 – 4/1 | 16 / 5 | 4 / 1 | 20p |
+| 15 | 16/5 – 4/1 | 16 / 5 | 4 / 1 | 20p ⚠️🔴 |
 | 16 | 9/2 – 11/2 | 9 / 2 | 11 / 2 | 15p |
 | 17 | 6/1 – 9/1 | 6 / 1 | 9 / 1 | 10p |
 | 18 | 10/1 – 14/1 | 10 / 1 | 14 / 1 | 5p ⚠️ |
@@ -259,6 +259,25 @@ The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
 
 Rows 1–8 are odds-on and read "shorter than" downward; rows 9–19 read upward.
 Both ends are inclusive.
+
+#### 🔴 Row 15 is now the weakest row — the only three-way split
+
+Three published values for the 20p band's lower bound:
+
+| Value | Sources | In sequence? |
+|---|---|---|
+| **16/5** (3.2) ← implemented | geegeez, bettingsites, nonrunnerstoday, horseracingnonrunners | yes |
+| 100/30 (3.333) | nonrunnerstomorrow | yes |
+| 16/15 (1.067) | racing-index | **no** |
+
+`racing-index`'s 16/15 is a **suspected typo**: 1.067 sits below the 12/5 (2.4)
+that opens the band above it, so a table cannot run 12/5 → 16/15 → 9/2.
+Inserting a `1` into `16/5` produces `16/15` exactly, which makes 16/5 — the
+four-source value — the most economical thing it is a typo *of*.
+
+`nonrunnerstomorrow`'s 100/30 is **not** dismissible that way: 3.333 is in
+sequence between 3/1 and 9/2. It is a real disagreement, losing 4 to 1 on count
+alone. Enforced and re-checked every run by `tests/consensus/`.
 
 #### 🔴 Row 10 is the HIGHEST RISK row in this table — docs/08 D19
 
@@ -271,6 +290,13 @@ Three readings of the evens band exist, and they were found in three places:
 | 55p | one source cited by `docs/09` §3.3 | single, and that source omits the 85p band entirely and looks offset by one step across the short-price range |
 
 D19 **decides** 45p. It does not **resolve** the disagreement — O6 stays open.
+
+**Update 2026-07-29:** `racing-index` states *"if the withdrawn horse was the
+evens favourite... there would be a R4 deduction of 45p for every pound won"* —
+the first third-party **computed** number for this row, and it agrees with 45p
+against both the old 50p and the 55p reading in `docs/09` §3.3. Two more sources
+also put the row at 45p, taking it to 6/6 on table consensus. O6 stays open on
+principle, but this row is no longer the weakest — row 15 is.
 
 Evens is one of the most common withdrawal prices in racing, so an error here
 is a recurring settlement error rather than an edge case. **This is the single

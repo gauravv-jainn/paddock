@@ -9,7 +9,8 @@
     "sourceClass": "THIRD-PARTY GUIDES, NOT BOOKMAKERS. All sixteen bookmaker fetches were blocked — docs/sources/BLOCKED-bookmakers.txt. Two of the six sources publish deduction tables that are provably wrong (docs/sources/COMPARISON.md §4); their worked examples are used, their tables are not.",
     "notGraded": "This file does not replace races.json. It contains no real races, no finishing fields, no dead-heat-for-final-place, no non-runner-changes-band cases. It is a smoke test built from arithmetic other people published, not the 200-race regression suite tests/golden/README.md requires.",
     "rule4Input": "Per docs/08 D14 the Rule 4 lookup input is a FRACTION. Each Rule 4 vector carries race.withdrawnAtFraction as {num,den} where the source states a fractional price. A vector whose source states only a decimal that is not on the ladder would be unsettleable, and none of the 27 is in that state — see the audit in the session report.",
-    "d16Gap": "docs/08 D16 — Rule 4 applies to BOTH parts of an each-way bet — is NOT covered here. All 7 Rule 4 vectors are win singles; all 11 each-way vectors are on races with no withdrawal. The intersection is empty, so D16 changes the expected settlement of ZERO of these 27 and conflicts with no source quote. It is also therefore unverified by fixture. loader.ts vectorsCoveringD16() is a tripwire on the gap."
+    "d16Gap": "docs/08 D16 — Rule 4 applies to BOTH parts of an each-way bet — is NOT covered here. All 7 Rule 4 vectors are win singles; all 11 each-way vectors are on races with no withdrawal. The intersection is empty, so D16 changes the expected settlement of ZERO of these 27 and conflicts with no source quote. It is also therefore unverified by fixture. loader.ts vectorsCoveringD16() is a tripwire on the gap.",
+    "bandCoverage": "Bands with at least one third-party COMPUTED number (a stated return or a stated deduction), out of 19: 8 of 19 — rows 10,11,12,13,14,15,16,18. Rows 1-9 (90p..50p, the odds-on bands) and 17 and 19 have table consensus but zero computed evidence: no guide uses an odds-on withdrawal as its teaching example. See tests/consensus/ and docs/sources/BLOCKED-rule4-sources.txt."
   },
   "vectors": [
     {
@@ -828,6 +829,80 @@
       "expectedStatus": "WON",
       "expectedDisputed": true,
       "expectedDisputedReason": "The source rounds the divided stake to £3.33 BEFORE multiplying by the odds. Rounding once at the end, as .claude/rules/money.md requires, gives £23.33 and not £23.31. A correct engine will FAIL this fixture by 2p. It is recorded because the disagreement is the point: it is a live question about whether intermediate rounding is the industry convention, and no bookmaker source was reachable to settle it. DO NOT treat as a passing target."
+    },
+    {
+      "id": "pub-r4-008",
+      "source": "https://nonrunnerstomorrow.com/rule-4-deductions/",
+      "sourceFile": "docs/sources/rule4-nonrunnerstomorrow.txt",
+      "verifiedBy": "third-party published example",
+      "verifiedOn": "2026-07-29",
+      "sourceQuote": "You place a £20 bet on Horse A at 5/1... total return £95",
+      "note": "Pins band 14 (12/5-3/1 = 25p) with a stated TOTAL RETURN rather than a stated deduction.",
+      "race": {
+        "rule4Pence": 25,
+        "withdrawnAtOddsStated": "3/1",
+        "withdrawnAtOdds": 4.0,
+        "withdrawnAtFraction": {
+          "num": 3,
+          "den": 1
+        },
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "2000",
+        "oddsStated": "5/1",
+        "oddsTaken": 6.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
+      "expectedReturnMinor": "9500",
+      "expectedStatus": "WON"
+    },
+    {
+      "id": "pub-r4-009-multiple",
+      "source": "https://nonrunnerstomorrow.com/rule-4-deductions/",
+      "sourceFile": "docs/sources/rule4-nonrunnerstomorrow.txt",
+      "verifiedBy": "third-party published example",
+      "verifiedOn": "2026-07-29",
+      "sourceQuote": "With an additional 10/1 scratching, \"your total return of £90.\"",
+      "note": "MULTIPLE WITHDRAWALS across two DIFFERENT bands — 14 (25p) and 18 (5p) — cumulating to 30p. The existing multi-withdrawal vector (pub-r4-006) draws both prices from bands already pinned by singles; this one pins the pair.",
+      "race": {
+        "rule4Pence": 30,
+        "withdrawnAtOddsStated": [
+          "3/1",
+          "10/1"
+        ],
+        "withdrawnAtOdds": [
+          4.0,
+          11.0
+        ],
+        "withdrawnAtFraction": [
+          {
+            "num": 3,
+            "den": 1
+          },
+          {
+            "num": 10,
+            "den": 1
+          }
+        ],
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "2000",
+        "oddsStated": "5/1",
+        "oddsTaken": 6.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
+      "expectedReturnMinor": "9000",
+      "expectedStatus": "WON"
     }
   ]
 }
