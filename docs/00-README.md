@@ -39,6 +39,7 @@ The 20-document list in the original brief includes documents that **cannot be w
 | 05 | Betting & Settlement Engine | **Complete** | The actual hard problem. Bet lifecycle, settlement rules, Rule 4, dead heats, each-way terms, non-runners. |
 | 06 | Livestream Integration | **Complete** | YouTube discovery, quota economics, embeddability, fallback ladder. |
 | 07 | Development Roadmap | **Complete** | Phase gates, kill criteria, realistic effort estimates. |
+| 08 | **Decision Log** | **Binding** | Resolves the contradictions found while building S1–S6. **Wins over 01–07 wherever they conflict.** Read before 01–07, not after. |
 
 ---
 
@@ -67,7 +68,7 @@ Each-way place terms vary by field size and handicap status. Rule 4 deductions a
 
 1. **No real money.** No deposits, withdrawals, payment rails, crypto, or cash-equivalent transfer between accounts. Virtual balances are non-transferable by design, enforced at the ledger layer.
 2. **Double-entry ledger.** Balances are derived, never a mutable integer column. Every credit has a matching debit.
-3. **Integer minor units.** All monetary values stored as `BIGINT` cents. No floats anywhere in the money path.
+3. **Integer minor units.** All monetary values stored as `BIGINT` **GBP pence** (`08` D1). No floats anywhere in the money path.
 4. **Provider-agnostic.** No provider-specific field names past the adapter boundary.
 5. **Deterministic settlement.** Given a stored result payload, settlement must produce identical output on replay. Settlement is a pure function over persisted inputs.
 

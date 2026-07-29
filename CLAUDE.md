@@ -19,6 +19,7 @@ Read these on demand — do not assume their contents:
 
 | Topic | File |
 |---|---|
+| **Binding decisions — read first, wins over 01–07** | `docs/08-decision-log.md` |
 | Provider research, ToS constraints | `docs/01-data-and-api-research.md` |
 | Scope, phases, non-goals | `docs/02-product-requirements.md` |
 | Architecture, stack, trade-offs | `docs/03-system-architecture.md` |
@@ -42,9 +43,10 @@ pnpm db:migrate
 
 ## Non-negotiable rules
 
-1. **Money is `bigint` minor units.** Never `number`, never `float`, never
-   `parseFloat` in the money path. If you need a ratio, use it as a multiplier
-   on a bigint and round once at the end.
+1. **Money is `bigint` minor units — GBP pence** (`docs/08` D1). Never
+   `number`, never `float`, never `parseFloat` in the money path. If you need a
+   ratio, use it as a multiplier on a bigint and round once at the end.
+   The opening balance is `10_000_000n` = £100,000 (`docs/08` D2).
 2. **The ledger is append-only.** No UPDATE, no DELETE on `ledger_entries`.
    Corrections are compensating entries.
 3. **Balance is derived** with `SUM(amount_minor)`. Never add a `balance` column.
@@ -102,7 +104,9 @@ They are out of scope for the current phase and adding them is a defect:
 - Live data (Phase 0 is historical replay only)
 - Native mobile apps, Electron, Tauri
 - Event sourcing outside the ledger, CQRS, microservices, message buses
-- Multi-currency accounting (display conversion only, USD base)
+- Multi-currency anything. Phase 0 is GBP pence end to end, with no
+  conversion in accounting **or** display (`docs/08` D1). Display conversion
+  returns in Phase 2, over a pence ledger, and never touches accounting.
 
 ## Hard prohibitions
 

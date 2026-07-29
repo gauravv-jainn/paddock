@@ -2,6 +2,8 @@
 
 **Status:** Complete for Phase 0–1. Phases 2–3 are intentionally sketched, not specified.
 
+> Amended by `docs/08-decision-log.md`, which is binding where it conflicts.
+
 ---
 
 ## 1. Product statement
@@ -41,7 +43,7 @@ This is a product judgement, and it is reversible. It is recorded here so it is 
 | ID | Requirement |
 |---|---|
 | P0-01 | Email + password auth, session management. Nothing else. |
-| P0-02 | Single virtual wallet per user, £100,000 opening balance, double-entry ledger |
+| P0-02 | Single virtual wallet per user, £100,000 (`10_000_000n` pence) opening balance, double-entry ledger. Created transactionally by `identity.register()` — see `docs/08` D2 and D8. |
 | P0-03 | Ingest historical UK/IRE meetings from static archive |
 | P0-04 | Browse meetings → race card → runner list with form, draw, weight, jockey, trainer |
 | P0-05 | Place bets: **Win, Place, Each-Way** only |
@@ -51,7 +53,7 @@ This is a product judgement, and it is reversible. It is recorded here so it is 
 | P0-09 | Web responsive. One codebase. |
 
 ### Explicitly out of scope
-Live data. Live odds. Streaming. Social. Leaderboards. Exotics. Multiples. Push notifications. Admin panel. Mobile apps. Desktop apps. OAuth. Passkeys. 2FA. Multi-currency. Achievements. Any country outside UK/IRE.
+Live data. Live odds. Streaming. Social. Leaderboards. Exotics. Multiples. Push notifications. Admin panel. Mobile apps. Desktop apps. OAuth. Passkeys. 2FA. Multi-currency — including display conversion, which `docs/08` D1 defers to Phase 2. Achievements. Any country outside UK/IRE.
 
 ### Exit criteria (all must pass)
 1. Settlement engine passes a regression suite of **≥200 historical races** including at least 10 dead heats, 10 Rule 4 races, and 20 races with non-runners, with **zero** incorrect settlements.

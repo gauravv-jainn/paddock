@@ -12,11 +12,14 @@ These rules apply to settlement, ledger, and bet placement code only.
 
 ## Arithmetic
 
-- All monetary values are `bigint` in minor units (pence/cents). There is no
-  exception to this.
+- All monetary values are `bigint` in **GBP pence** (`docs/08` D1). There is no
+  exception to this, and there is no other currency in Phase 0 — no conversion
+  in accounting and none in display.
 - Never `Number()` a monetary bigint to do arithmetic and convert back.
 - Round **once**, at the end of a computation, never at intermediate steps.
 - Rounding is half-up, resolving ties in the user's favour.
+- Rule 4 deductions in `docs/05` §5 are quoted in pence per pound, which is the
+  same unit the ledger is denominated in. No conversion step exists anywhere.
 - Odds are `number` (decimal form) and are inputs to multipliers only — they
   never hold money.
 

@@ -3,11 +3,16 @@
 **Status:** Complete for Phase 0–1.
 **Engine:** PostgreSQL 16.
 
+> **Amended by `docs/08-decision-log.md`**, which is binding where it conflicts.
+> The amendments are marked inline below: D1 (§3, GBP pence), D3 (§4,
+> `is_handicap`), D4 (§4, `actual_runners`), D5 and D6 (§4, `horses`),
+> D8 (§3, house wallet), D10 (§5 is Phase 1).
+
 ---
 
 ## 1. Non-negotiable rules
 
-1. **Money is `BIGINT` minor units.** Never `FLOAT`, never `REAL`, never `DOUBLE PRECISION`. `NUMERIC` only for odds and ratios.
+1. **Money is `BIGINT` minor units — GBP pence** (`docs/08` D1). Never `FLOAT`, never `REAL`, never `DOUBLE PRECISION`. `NUMERIC` only for odds and ratios.
 2. **Balances are derived from the ledger.** No mutable `balance` column anywhere in Phase 0–1.
 3. **The ledger is append-only.** No `UPDATE`, no `DELETE`. Corrections are compensating entries. Enforced by a `BEFORE UPDATE OR DELETE` trigger that raises.
 4. **Raw provider payloads are persisted verbatim with a content hash** before normalisation. Determinism depends on this.
@@ -27,7 +32,7 @@ CREATE TABLE users (
   password_hash   TEXT,                          -- NULL for OAuth-only
   role            TEXT NOT NULL DEFAULT 'user'
                     CHECK (role IN ('user','admin')),
-  base_currency   CHAR(3) NOT NULL DEFAULT 'GBP',  -- display only
+  base_currency   CHAR(3) NOT NULL DEFAULT 'GBP',  -- D1: display only, read by nothing in Phase 0
   status          TEXT NOT NULL DEFAULT 'active'
                     CHECK (status IN ('active','suspended','deleted')),
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -66,12 +71,15 @@ CREATE TABLE wallets (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
   kind        TEXT NOT NULL CHECK (kind IN ('user','house','void_pool')),
-  currency    CHAR(3) NOT NULL DEFAULT 'USD',     -- accounting currency, always USD
+  currency    CHAR(3) NOT NULL DEFAULT 'GBP',     -- D1: accounting currency, always GBP
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT user_wallet_requires_user
     CHECK ((kind = 'user') = (user_id IS NOT NULL))
 );
 CREATE UNIQUE INDEX ON wallets (user_id) WHERE kind = 'user';
+-- D8: exactly one house wallet, seeded by migration. It is the counterparty to
+-- every user credit and may go arbitrarily negative.
+CREATE UNIQUE INDEX ON wallets (kind) WHERE kind = 'house';
 
 CREATE TABLE ledger_entries (
   id            BIGSERIAL PRIMARY KEY,
@@ -135,6 +143,10 @@ SELECT wallet_id, SUM(amount_minor) AS balance_minor
 FROM ledger_entries GROUP BY wallet_id;
 ```
 
+`balance_minor` is GBP pence (D1). Every user starts at `10_000_000` — £100,000,
+credited from the house wallet by `identity.register()` in the same transaction
+that creates the user (D2, D8).
+
 Sufficient to roughly 10⁶ entries per wallet. Beyond that, add a `wallet_balance_snapshots` table (checkpoint every 10,000 entries, sum forward from the last checkpoint). **Do not build this until profiling demands it.**
 
 ---
@@ -152,14 +164,20 @@ CREATE TABLE tracks (
 );
 
 CREATE TABLE horses (
-  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name         TEXT NOT NULL,
-  country_code CHAR(3),                           -- suffix, e.g. 'IRE','USA'
-  foaled_year  SMALLINT,
-  sex          TEXT,
-  sire         TEXT,
-  dam          TEXT,
-  UNIQUE (name, country_code, foaled_year)
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            TEXT NOT NULL,
+  -- D6: renamed from country_code. This is a breeding suffix ('IRE','USA',
+  -- 'GER'), NOT a country. tracks.country_code IS a country; the two were
+  -- identically named on adjacent tables and would eventually be joined.
+  breeding_suffix CHAR(3),
+  foaled_year     SMALLINT,
+  sex             TEXT,
+  sire            TEXT,
+  dam             TEXT,
+  -- D5: NULLS NOT DISTINCT. Two of the three key columns are nullable, and
+  -- under the default NULLS DISTINCT a horse with no suffix or no foaling year
+  -- would insert a duplicate row on every ingestion run.
+  UNIQUE NULLS NOT DISTINCT (name, breeding_suffix, foaled_year)
 );
 
 CREATE TABLE people (
@@ -189,7 +207,9 @@ CREATE TABLE races (
   distance_yards   INTEGER,
   race_class       TEXT,
   race_type        TEXT CHECK (race_type IN ('flat','hurdle','chase','ntf','harness')),
-  is_handicap      BOOLEAN NOT NULL DEFAULT FALSE,   -- drives each-way place terms
+  is_handicap      BOOLEAN NOT NULL,                  -- D3: NO DEFAULT. Drives each-way
+                                                      -- place terms; a default would turn
+                                                      -- "the feed did not say" into "no".
   age_band         TEXT,
   prize_minor      BIGINT,
   declared_runners SMALLINT,                          -- at declaration
@@ -200,6 +220,10 @@ CREATE TABLE races (
   result_version   INTEGER NOT NULL DEFAULT 0,        -- increments on stewards' amendment
   rule4_pence      SMALLINT NOT NULL DEFAULT 0
                      CHECK (rule4_pence BETWEEN 0 AND 90),
+  -- D4: a race cannot reach 'result' without the starter count, because
+  -- each-way settlement has no place-terms row to look up without it.
+  CONSTRAINT races_result_requires_actual_runners
+    CHECK (status <> 'result' OR actual_runners IS NOT NULL),
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (provider_id, provider_ref)
 );
@@ -231,9 +255,18 @@ CREATE INDEX ON runners (horse_id);
 
 **`is_handicap` and `actual_runners` are not decoration.** They are the two inputs that determine each-way place terms. If the provider does not supply them reliably, each-way betting cannot ship. See `05`, §4.
 
+Both are now enforced rather than hoped for (D3, D4): `is_handicap` has no
+default and must be stated on every insert, and `actual_runners` is constrained
+to be present once a race has a result. The archive adapter rejects a racecard
+that omits either, so the database is never the last line of defence.
+
 ---
 
-## 5. Odds time series
+## 5. Odds time series — **PHASE 1, NOT PHASE 0**
+
+> **D10.** Phase 0 is historical replay; there is no live market to snapshot,
+> and no Phase 0 module owns this table. Nothing in §5 is to be built during
+> Phase 0. `catalog` takes ownership when a live provider arrives.
 
 ```sql
 CREATE TABLE odds_snapshots (
@@ -253,7 +286,7 @@ CREATE TABLE odds_snapshots_2026_08 PARTITION OF odds_snapshots
 CREATE INDEX ON odds_snapshots (runner_id, captured_at DESC);
 ```
 
-This is the only table that grows without bound. Partition from day one — retrofitting partitioning onto a large table is painful. Retention: keep full resolution 90 days, then downsample to open/high/low/close/SP per runner and drop the raw partition.
+This is the only table that grows without bound. Partition from day one, **when it is built in Phase 1** — retrofitting partitioning onto a large table is painful. Retention: keep full resolution 90 days, then downsample to open/high/low/close/SP per runner and drop the raw partition.
 
 ---
 
