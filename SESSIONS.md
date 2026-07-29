@@ -159,7 +159,8 @@ bigint minor units throughout.
 Order of operations exactly as specified in .claude/rules/money.md.
 Returns a calculation object recording every input and every rule applied.
 
-Tests: table-driven, run against tests/golden/races.json.
+Tests: table-driven, run against tests/golden/published.json (docs/08 D20
+supersedes races.json, which was never assembled).
 Target 100% branch coverage on settle(), and a >=90% Stryker mutation score
 over src/modules/settlement/ with every survivor recorded. See docs/05 §8.
 
@@ -263,7 +264,8 @@ compounds; a stray abstraction in week 2 is three files to unpick in week 6.
 
 Do not start Phase 1 until all five are true:
 
-- [ ] 200 golden vectors settle correctly, zero errors
+- [ ] All non-disputed vectors in tests/golden/published.json settle correctly,
+      zero errors (docs/08 D20 replaced the 200 hand-computed vectors)
 - [ ] Mutation score over `src/modules/settlement/` is >=90%, every survivor
       recorded in `tests/mutation-survivors.md`
 - [ ] Ledger sums to zero across every wallet at every point in history

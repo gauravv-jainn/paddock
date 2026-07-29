@@ -17,11 +17,9 @@
  * with its source file, the source file wins and this is a transcription bug.
  */
 
-/** A published price bound. `null` means the band is open at that end. */
-export interface Fraction {
-  num: number;
-  den: number;
-}
+import { RULE4_TABLE, type Fraction } from "@/modules/settlement";
+
+export type { Fraction };
 
 export interface Band {
   /** Pence in the pound. Unique per row, so it doubles as the row key. */
@@ -146,9 +144,18 @@ export const SOURCES: Source[] = [
 ];
 
 /**
- * The table actually published in `docs/05` §5.1 — what the consensus is
- * checked against. Kept separate from the sources on purpose: if someone edits
- * §5.1 they must edit this, and the test then tells them what evidence they
- * just contradicted.
+ * What the consensus is checked against: **the table that actually settles
+ * bets**, imported from src/modules/settlement/rules/rule4.ts.
+ *
+ * This used to be a local copy of docs/05 §5.1. A copy can drift from the
+ * shipped constants silently and the gate would still pass, which would have
+ * made this whole directory decorative. Now the six sources hold the real
+ * settlement data to account on every run.
  */
-export const IMPLEMENTED: Band[] = standardBands();
+export const IMPLEMENTED: Band[] = RULE4_TABLE.rows.map((r) => ({
+  deduction: r.deduction,
+  from: r.from,
+  to: r.to,
+  ...(r.fromExclusive === undefined ? {} : { fromExclusive: r.fromExclusive }),
+  published: r.published,
+}));

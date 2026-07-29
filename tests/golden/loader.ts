@@ -19,11 +19,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 export type BetType = "WIN" | "PLACE" | "EACH_WAY";
 export type ExpectedStatus = "WON" | "LOST" | "PARTIAL" | "VOID";
 
-/** Integer pair. The sole input to the Rule 4 band lookup — docs/08 D14. */
-export interface Fraction {
-  num: number;
-  den: number;
-}
+// The sole input to the Rule 4 band lookup — docs/08 D14. Imported rather than
+// redeclared so the fixtures and the table that settles them share one type.
+export type { Fraction } from "@/modules/settlement";
+import type { Fraction } from "@/modules/settlement";
 
 export interface PublishedVector {
   id: string;

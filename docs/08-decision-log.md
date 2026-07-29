@@ -400,8 +400,9 @@ principle as never rendering stale odds as live.
 
 | # | Item | Blocks |
 |---|---|---|
-| O1 | `tests/golden/races.json` — assembled by hand from real results | S8, S9, and every gate after |
+| ~~O1~~ | ~~`tests/golden/races.json` — assembled by hand from real results~~ — **superseded by D20**, which replaces hand-computed golden vectors with three layers: the published third-party vectors, metamorphic properties, and differential implementation. Layer 4 (table consensus) was added later. `races.json` is no longer a blocker for S8, S9 or the Phase 0 gate; assembling one later remains the strongest available hardening. | — |
 | O2 | One month of GB/IE archive day files under `ARCHIVE_ROOT` | S6 ingest run |
+| O10 | **`scripts/guard-commit.sh` is inert.** It only runs `test:settlement` when `tests/golden/races.json` is non-empty, and D20 superseded that file — so it warns and exits 0 on every commit. It should gate on `published.json` instead. Not changed here because pointing it at a live suite starts blocking commits, which is the intent but is a behavioural change to approve rather than assume. | S9 |
 | ~~O3~~ | ~~Written ToS confirmation from the data provider~~ — **closed by D20.** There is no paid provider, so there is nobody to ask. Replaced by the obligation to record the free dataset's licence in `docs/sources/`. | — |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
 | ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
@@ -410,8 +411,12 @@ principle as never rendering stale odds as live.
 | ~~O8~~ | ~~Early withdrawal: void or deduct~~ — **resolved by D17.** Decided by what the row carries, and ambiguity refuses rather than assumes. | — |
 | ~~O9~~ | ~~Enhanced place terms~~ — **resolved by D18.** Opt-in per race, both columns or neither, excluded from `tests/golden/` unless the real terms are recorded. | — |
 
-O1 and O4 are the ones that determine whether this product is correct. Neither
-can be delegated, and no amount of tooling substitutes for them.
+O4 is the one that determines whether the rule tables are correct. It cannot be
+delegated, and no amount of tooling substitutes for it — four verification
+layers measure agreement and self-consistency, not truth.
+
+O1 was the other, and D20 superseded it: the graders are now third-party
+published returns rather than hand-computed ones.
 
 **Update 2026-07-29.** An attempt to close O4 by fetching bookmakers' published
 rules found that all sixteen block automated fetches
