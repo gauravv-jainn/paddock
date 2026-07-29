@@ -1,0 +1,78 @@
+SOURCES:    three further each-way pages, fetched 2026-07-29 by WebFetch.
+CLASS:      third-party guides. NONE is a bookmaker's published rules page.
+
+These are recorded together because each is INCOMPLETE or WRONG in a different
+way. They are evidence about the state of third-party sources, not about the
+rules.
+
+================================================================================
+https://mybettingsites.co.uk/learn/each-way-betting/
+================================================================================
+| Runners | Race Type | Fraction | Places |
+|---------|-----------|----------|--------|
+| 1-4 | All Races | Win Only | 1st |
+| 5-7 | All Races | 1/4 Odds | 1st & 2nd |
+| 8-11 | Non-Handicap | 1/5 Odds | 1st, 2nd, 3rd |
+| 12-15 | Handicap | 1/4 Odds | 1st, 2nd, 3rd |
+| 16+ | Handicap | 1/4 Odds | 1st, 2nd, 3rd, 4th |
+
+DEFECT: the non-handicap row is capped at 11 runners, so a 12+ runner
+non-handicap has no row at all. Every other source says non-handicap 8+ is
+3 places at 1/5 with no upper bound.
+
+Worked examples (10/1, £5 each-way, 1/5 for places 1-3):
+  wins        -> win part "£55 (£50 profit + £5 stake)",
+                 place part "£15 (£10 profit + £5 stake)",
+                 total "£70 (£60 profit + £10 stake)"
+  2nd or 3rd  -> "£15"
+  4th or worse-> £0
+
+================================================================================
+https://theracelab.co.uk/guides/each-way-betting-explained/
+================================================================================
+| Runners | Places Paid | Fraction of Odds |
+|---------|-------------|-----------------|
+| 2-4 runners | Win only (no place market) | - |
+| 5-7 runners | 1st and 2nd | 1/4 |
+| 8-15 runners | 1st, 2nd, and 3rd | 1/5 |
+| 16+ runners | 1st, 2nd, 3rd, and 4th | 1/4 |
+| Handicaps, 16+ runners | 1st, 2nd, 3rd, and 4th | 1/4 |
+
+DEFECT: "8-15 runners = 1/5" contradicts every other source, which puts
+handicap 12-15 at 1/4. This source has no handicap 12-15 row at all.
+
+Worked examples:
+  "£10 each-way (£20 total stake)" at 10/1 in a 12-runner race:
+      wins   -> "Total return: £140 from a £20 outlay"
+      places -> "Total return: £30 from a £20 outlay"
+  "£10 each-way (£20 total)" at 3/1 in a 12-runner race:
+      wins   -> "Total return: £56"
+      places -> "Return of £16 from £20 stake. You've lost £4 even though the
+                 horse placed."
+  Both example sets imply a 1/5 place fraction, i.e. they only hold for a
+  NON-handicap 12-runner race.
+
+================================================================================
+https://www.grandnational.fans/betting/way-bets-explained/
+================================================================================
+| Runners | Odds | Places |
+|---------|------|--------|
+| 1-4 | - | Win Only |
+| 5-7 | 1/4 | 1st & 2nd |
+| 8+ | 1/5 | 1st, 2nd, 3rd |
+| 12-15 (handicapped) | 1/4 | 1st, 2nd, 3rd |
+| 16+ (handicapped) | 1/4 | 1st, 2nd, 3rd, 4th |
+
+DEFECT: no handicap 8-11 row; the unqualified "8+" row overlaps the handicap
+rows below it.
+
+Worked examples:
+  "Stake: £5 each way (£10 total)" at 40/1, one-fifth place odds:
+      "Win portion: £5 x 40/1 = £200 + £5 stake = £205"
+      "Place portion: £5 x 8/1 (one-fifth of 40/1) = £40 + £5 stake = £45"
+      "Total return: £250"
+  Place-only returns on £2.50 each-way (£5 total) at 1/5 odds:
+      "5/1 = £5 return"
+      "20/1 = £12.50 return"
+      "40/1 = £22.50 return"
+      "100/1 = £52.50 return"

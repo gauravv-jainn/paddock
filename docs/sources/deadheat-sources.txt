@@ -1,0 +1,41 @@
+SOURCES:    dead-heat pages, fetched 2026-07-29 by WebFetch.
+CLASS:      third-party guides. NEITHER is a bookmaker's published rules page.
+
+Bookmaker dead-heat pages were attempted and blocked: support.betfair.com,
+support.skybet.com and helpcenter.paddypower.com all returned 403.
+
+================================================================================
+https://fixedoddshorseracinguk.com/articles/dead-heat-rules-betting-payouts/
+================================================================================
+Two-horse dead heat:
+"Consider a £10 win bet at 6/1 in a two-horse dead heat. Your £10 stake becomes
+two £5 portions. One £5 wins at 6/1, returning £35 (£30 profit plus £5 stake).
+The other £5 is lost. Your total return is £35 from a £10 investment - £25
+profit rather than the £60 profit you'd have received from an outright win."
+
+Three-way dead heat:
+"That same £10 at 6/1 becomes three £3.33 portions. Only one-third wins:
+£3.33 x 7.00 = £23.31. From your £10 stake, you receive £23.31 back - a modest
+profit rather than the life-changing win you might have anticipated."
+
+Place dead heat (no figures given):
+"If you backed a horse at 3/1 for a place and it dead-heats for third with one
+other horse, half your stake wins at 3/1 and half loses."
+
+WARNING ON THE THREE-WAY EXAMPLE: £23.31 is reached by rounding the divided
+stake to £3.33 BEFORE multiplying by the odds. Dividing exactly
+(10/3 x 7.00 = 23.333...) gives £23.33. `.claude/rules/money.md` requires
+rounding once, at the end, which yields £23.33 and NOT the source's £23.31.
+This example is carried in published.json flagged `disputed: true` and MUST NOT
+be treated as a passing target until a bookmaker source settles the question.
+
+================================================================================
+https://www.bet442.co.uk/blog/dead-heat-horse-racing/
+================================================================================
+"if you had placed a £10 bet on one horse, and it dead-heated with another,
+your stake would be halved to £5."
+"in a dead heat with three horses, your £10 stake turns into £3.33 for payout
+calculations."
+
+No complete worked example with odds and a final return. Not usable as a
+fixture; recorded as corroboration of the stake-division mechanism only.

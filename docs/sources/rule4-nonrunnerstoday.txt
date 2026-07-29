@@ -1,0 +1,40 @@
+SOURCE:     https://nonrunnerstodayracing.com/articles/rule-4-deduction-table/
+FETCHED:    2026-07-29
+FETCHED BY: WebFetch
+CLASS:      third-party racing guide. NOT a bookmaker's published rules page.
+
+--- BEGIN FETCHED CONTENT ---
+
+# Rule 4 Deduction Table
+
+## Complete Odds-to-Deduction Scale
+
+| Price of Non-Runner | Deduction (pence in the £) |
+|---|---|
+| 1/9 or shorter | 90p |
+| 2/11 to 2/17 | 85p |
+| 1/4 to 1/5 | 80p |
+| 3/10 to 2/7 | 75p |
+| 2/5 to 1/3 | 70p |
+| 8/15 to 4/9 | 65p |
+| 8/13 to 4/7 | 60p |
+| 4/5 to 4/6 | 55p |
+| 20/21 to 5/6 | 50p |
+| Evens to 6/5 | 45p |
+| 5/4 to 6/4 | 40p |
+| 8/5 to 7/4 | 35p |
+| 9/5 to 9/4 | 30p |
+| 12/5 to 3/1 | 25p |
+| 16/5 to 4/1 | 20p |
+| 9/2 to 11/2 | 15p |
+| 6/1 to 9/1 | 10p |
+| 10/1 to 14/1 | 5p |
+| Over 14/1 | No deduction |
+
+## Worked Example
+
+"If you staked £10 on a horse at 6/1 and the Rule 4 deduction is 25p, your
+gross profit was £60. The deduction is £60 x 0.25 = £15. Your adjusted profit
+is £45, and your total return is £55 (£45 plus your £10 stake)."
+
+--- END FETCHED CONTENT ---

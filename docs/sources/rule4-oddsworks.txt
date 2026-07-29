@@ -1,0 +1,43 @@
+SOURCE:     https://oddsworks.uk/rule-4-calculator/
+FETCHED:    2026-07-29
+FETCHED BY: WebFetch
+CLASS:      third-party calculator. NOT a bookmaker's published rules page.
+
+--- BEGIN FETCHED CONTENT ---
+
+# Rule 4 Deduction Table
+
+| Price Range | Deduction |
+|---|---|
+| 1/5 to 2/5 | 90p |
+| 8/13 | 55p |
+| 5/6 to Evens | 55p |
+| 6/5 | 40p |
+| 7/4 | 35p |
+| 5/2 | 25p |
+| 7/2 | 15p |
+| 6/1+ | 0p |
+
+---
+
+# Worked Example (Verbatim)
+
+"You have backed a winner at 4/1. Before the off, the 2/1 favourite is
+withdrawn at the start. The Tattersalls Rule 4 scale dictates that a withdrawal
+at 2/1 triggers a deduction of 30 pence in the pound of winnings. Your £10
+winning stake would, without any deduction, pay £40 in winnings (plus the £10
+stake back, total £50). The deduction of 30p in the pound takes 30% off the £40
+of winnings - £12. Adjusted winnings are £28, total return £38."
+
+--- END FETCHED CONTENT ---
+
+NOTE — THIS TABLE IS UNUSABLE AND IS RETAINED ONLY AS A COUNTER-EXAMPLE. It has
+8 rows where every other source has 19; it puts 1/5 at 90p where four sources
+say 80p; it puts Evens at 55p where four sources say 45p; it puts 6/1 at 0p
+where four sources say 10p.
+
+It also contradicts ITSELF: the worked example applies 30p to a 2/1 withdrawal,
+which agrees with the four-source consensus (9/5 to 9/4 = 30p, and 2/1 = 3.00
+decimal falls in that band) but does not appear anywhere in its own table.
+
+The worked example IS used as a fixture; the table is not used at all.

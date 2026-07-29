@@ -1,0 +1,53 @@
+SOURCE:     https://horseracingnonrunners.com/rule-4-deductions/
+FETCHED:    2026-07-29
+FETCHED BY: WebFetch
+CLASS:      third-party racing guide. NOT a bookmaker's published rules page.
+
+--- BEGIN FETCHED CONTENT ---
+
+# Rule 4 Deduction Table
+
+| Price of Withdrawn Horse | Deduction (pence per £1) |
+|---|---|
+| 1/9 or shorter | 90p |
+| 2/11 to 2/17 | 85p |
+| 1/4 to 1/5 | 80p |
+| 3/10 to 2/7 | 75p |
+| 2/5 to 1/3 | 70p |
+| 8/15 to 4/9 | 65p |
+| 8/15 to 4/7 | 60p |
+| 8/13 to 4/6 | 55p |
+| 20/21 to 5/6 | 50p |
+| Evens to 6/5 | 45p |
+| 5/4 to 6/4 | 40p |
+| 8/5 to 7/4 | 35p |
+| 9/5 to 9/4 | 30p |
+| 12/5 to 3/1 | 25p |
+| 16/5 to 4/1 | 20p |
+| 9/2 to 11/2 | 15p |
+| 6/1 to 9/1 | 10p |
+| 10/1 to 14/1 | 5p |
+| Over 14/1 | No deduction |
+
+## Worked Examples (Verbatim)
+
+Example 1: "You place a £20 win bet on Horse A at 4/1. Before the race, Horse B
+- the 6/4 joint-favourite - is withdrawn...a 40p deduction...winnings would be
+£80...£80 x 0.40 = £32. Your adjusted winnings are £80 minus £32, which equals
+£48. Add your £20 stake back, and the total return is £68 instead of £100."
+
+Example 2: "Same bet - £20 on Horse A at 4/1 - but this time the withdrawn
+horse was a 12/1 outsider...5p...Your winnings are still £80. The deduction:
+£80 x 0.05 = £4. Adjusted winnings: £76. Total return with stake: £96."
+
+Example 3: "Two horses are withdrawn...Horse B was priced at 3/1 (25p
+deduction) and Horse C at 5/1 (15p deduction...deductions stack: 25p + 15p =
+40p...£80 x 0.40 = £32. Adjusted winnings: £48. Total return: £68."
+
+--- END FETCHED CONTENT ---
+
+NOTE — THREE ROWS IN THIS TABLE ARE CORRUPT. Rows 6-8 read
+"8/15 to 4/9 = 65p", "8/15 to 4/7 = 60p", "8/13 to 4/6 = 55p". The 60p row
+repeats the 65p row's lower bound, and the 55p row's bounds do not match any
+other source. The other three sources agree on "8/13 to 4/7 = 60p" and
+"4/5 to 4/6 = 55p". Rows 1-5 and 9-19 match the other sources exactly.

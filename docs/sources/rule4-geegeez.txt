@@ -1,0 +1,43 @@
+SOURCE:     https://www.geegeez.co.uk/geegeez-faq/rule-4-deductions-chart/
+FETCHED:    2026-07-29
+FETCHED BY: WebFetch (page rendered to markdown, then the Rule 4 table and
+            worked example extracted). This file records what was returned,
+            not a summary of it.
+CLASS:      third-party racing guide. NOT a bookmaker's published rules page.
+
+--- BEGIN FETCHED CONTENT ---
+
+# Rule 4 Deductions Table
+
+| Odds | Decimal | Deduction |
+|------|---------|-----------|
+| 1/9 or shorter | 1.11 or shorter | 90p in £1 |
+| 2/11 to 2/17 | 1.18 to 1.12 | 85p in £1 |
+| 1/4 to 1/5 | 1.25 to 1.20 | 80p in £1 |
+| 3/10 to 2/7 | 1.30 to 1.29 | 75p in £1 |
+| 2/5 to 1/3 | 1.40 to 1.33 | 70p in £1 |
+| 8/15 to 4/9 | 1.53 to 1.45 | 65p in £1 |
+| 8/13 to 4/7 | 1.62 to 1.57 | 60p in £1 |
+| 4/5 to 4/6 | 1.80 to 1.66 | 55p in £1 |
+| 20/21 to 5/6 | 1.95 to 1.83 | 50p in £1 |
+| Evens to 6/5 | 2.00 to 2.20 | 45p in £1 |
+| 5/4 to 6/4 | 2.25 to 2.50 | 40p in £1 |
+| 8/5 to 7/4 | 2.60 to 2.75 | 35p in £1 |
+| 9/5 to 9/4 | 2.80 to 3.25 | 30p in £1 |
+| 12/5 to 3/1 | 3.40 to 4.00 | 25p in £1 |
+| 16/5 to 4/1 | 4.20 to 5.00 | 20p in £1 |
+| 9/2 to 11/2 | 5.50 to 6.50 | 15p in £1 |
+| 6/1 to 9/1 | 7.00 to 10.00 | 10p in £1 |
+| 10/1 to 14/1 | 11.00 to 15.00 | 5p in £1* |
+| Over 14/1 | Over 15.00 | No deduction |
+
+*Not all bookmakers apply deductions at this level.
+
+## Worked Example
+
+The guide provides this calculation example: "a 5p rule 4 deduction on a £100
+stake on a 10/1 winner will reduce your profit by 5%. The profit on this bet
+would ordinarily be £1,000 so 5% of that is £50 - that's the deduction. The
+total return on the bet would be £1,050."
+
+--- END FETCHED CONTENT ---

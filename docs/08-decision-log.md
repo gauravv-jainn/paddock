@@ -260,6 +260,15 @@ The Phase 0 gate in `SESSIONS.md` gains this alongside the 200 golden vectors.
 | O2 | One month of GB/IE archive day files under `ARCHIVE_ROOT` | S6 ingest run |
 | O3 | Written confirmation from the data provider that a paper-trading platform is permitted under their terms | Phase 1 |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
+| O5 | **How an arbitrary decimal price maps into a fractional Rule 4 band.** The bands are published fractionally; `runners.withdrawn_at_odds` is `NUMERIC(10,3)`. Converting leaves gaps (nothing between 1.95 and 2.00), and the sources that close them disagree at exact boundaries — one puts 3.25 at 25p, four put 9/4 (=3.25) at 30p. A decimal exchange price of 2.32 has no defined deduction. See `docs/05` §5.1.1. | S8 — blocking |
 
 O1 and O4 are the ones that determine whether this product is correct. Neither
 can be delegated, and no amount of tooling substitutes for them.
+
+**Update 2026-07-29.** An attempt to close O4 by fetching bookmakers' published
+rules found that all sixteen block automated fetches
+(`docs/sources/BLOCKED-bookmakers.txt`). What it did establish, from four
+agreeing third-party sources, is that `docs/05` §5.1 was **wrong from "Evens"
+upward** — a missing band shifted ten consecutive rows one rung too severe. The
+table is corrected and the evidence is in `docs/sources/`, but the source class
+is guides rather than bookmakers, so **O4 stays open** and O5 is new.

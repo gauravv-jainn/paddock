@@ -93,9 +93,30 @@ status:
 
 ---
 
-## 4. Each-way place terms — the table that must be verified
+## 4. Each-way place terms
 
-Standard UK/Irish terms. **These are the values to confirm before implementation.**
+**Checked 2026-07-29 and confirmed unchanged.** Comparison across four
+third-party sources: `docs/sources/COMPARISON.md` §5.
+
+```
+VERIFY: confirmed row for row against docs/sources/place-terms-kickthebookies.txt,
+        the only source fetched that splits the table by handicap status across
+        the full runner range. Checked 2026-07-29.
+
+VERIFY: partially corroborated by docs/sources/place-terms-others.txt
+        (mybettingsites, theracelab, grandnational.fans). Each is incomplete in
+        a different way — one caps non-handicap at 11 runners, one has no
+        handicap 8-11 row — but none contradicts a row it actually states,
+        with one exception below.
+
+VERIFY: DISPUTED — handicap 12-15. theracelab publishes "8-15 runners = 1/5",
+        which would make a 12-15 runner handicap pay 1/5 rather than 1/4. One
+        source against three plus this table, and its own table has no handicap
+        12-15 row at all. NOT resolved; recorded rather than dismissed.
+
+        NOT confirmed against any bookmaker — all sixteen attempts were blocked
+        (docs/sources/BLOCKED-bookmakers.txt). O4 in docs/08 stays open.
+```
 
 | Runners | Race type | Places paid | Fraction of odds |
 |---|---|---|---|
@@ -136,29 +157,96 @@ Place terms are determined by the **number of runners that actually start**, not
 
 When a horse is withdrawn after the market has formed but before the race, remaining runners' true chances increase. Fixed-odds bets already struck at the old price are reduced by a deduction based on the withdrawn horse's price at withdrawal.
 
-### 5.1 The table (Tattersalls Rule 4 — verify before use)
+### 5.1 The table (Tattersalls Rule 4)
 
-| Odds of withdrawn horse (decimal) | Deduction (pence per £1) |
+> **Replaced 2026-07-29.** The decimal table that stood here was wrong from
+> "Evens" upward — it omitted the `20/21 – 5/6 → 50p` band, so ten consecutive
+> rows were one rung too severe. Evidence and the full six-source comparison:
+> `docs/sources/COMPARISON.md`.
+>
+> **Source class: third-party guides, NOT bookmakers.** All sixteen attempts to
+> fetch a UK bookmaker's published rules page were blocked
+> (`docs/sources/BLOCKED-bookmakers.txt`). O4 in `docs/08` is still open.
+
+**The bands are fractional.** They are published fractionally by every source
+that agrees, and rendering them as decimal is what produced the previous error
+— see §5.1.1.
+
+| Withdrawn horse's price | Deduction (pence per £1 of winnings) |
 |---|---|
-| ≤ 1.11 | 90p |
-| 1.12 – 1.18 | 85p |
-| 1.19 – 1.25 | 80p |
-| 1.26 – 1.30 | 75p |
-| 1.31 – 1.40 | 70p |
-| 1.41 – 1.53 | 65p |
-| 1.54 – 1.62 | 60p |
-| 1.63 – 1.80 | 55p |
-| 1.81 – 2.20 | 50p |
-| 2.21 – 2.50 | 45p |
-| 2.51 – 2.75 | 40p |
-| 2.76 – 3.25 | 35p |
-| 3.26 – 4.00 | 30p |
-| 4.01 – 5.00 | 25p |
-| 5.01 – 6.00 | 20p |
-| 6.01 – 7.00 | 15p |
-| 7.01 – 10.00 | 10p |
-| 10.01 – 15.00 | 5p |
-| > 15.00 | 0p |
+| 1/9 or shorter | 90p |
+| 2/11 – 2/17 | 85p |
+| 1/4 – 1/5 | 80p |
+| 3/10 – 2/7 | 75p |
+| 2/5 – 1/3 | 70p |
+| 8/15 – 4/9 | 65p |
+| 8/13 – 4/7 | 60p ⚠️ |
+| 4/5 – 4/6 | 55p ⚠️ |
+| 20/21 – 5/6 | 50p |
+| Evens – 6/5 | 45p |
+| 5/4 – 6/4 | 40p |
+| 8/5 – 7/4 | 35p |
+| 9/5 – 9/4 | 30p |
+| 12/5 – 3/1 | 25p |
+| 16/5 – 4/1 | 20p |
+| 9/2 – 11/2 | 15p |
+| 6/1 – 9/1 | 10p |
+| 10/1 – 14/1 | 5p ⚠️ |
+| Over 14/1 | no deduction |
+
+```
+VERIFY: 17 of 19 rows unanimous across four independent sources —
+        docs/sources/rule4-geegeez.txt
+        docs/sources/rule4-bettingsites.txt
+        docs/sources/rule4-nonrunnerstoday.txt
+        docs/sources/rule4-horseracingnonrunners.txt
+        Checked 2026-07-29. NOT confirmed against any bookmaker.
+
+VERIFY: 60p and 55p rows — three of four sources. rule4-horseracingnonrunners
+        is corrupt at exactly these two rows (it repeats "8/15" as the lower
+        bound of two consecutive bands). Marked ⚠️. Needs a fourth reading.
+
+VERIFY: 5p row — rule4-geegeez.txt footnotes "Not all bookmakers apply
+        deductions at this level." May be operator-specific. Marked ⚠️.
+
+VERIFY: two worked examples from sources whose tables are otherwise unreliable
+        independently land on this table rather than the old one —
+        docs/sources/rule4-oddsworks.txt (2/1 → 30p) and
+        docs/sources/rule4-horseracingnonrunners.txt (6/4 → 40p).
+        Both are carried as fixtures in tests/golden/published.json.
+
+REJECTED: docs/sources/rule4-oddsworks.txt table — 8 rows, contradicts four
+        sources and its own worked example.
+REJECTED: docs/sources/rule4-racingalpha.txt table — decimal bands that
+        conflict at boundaries, self-overlapping fractional column.
+```
+
+### 5.1.1 Fractional bands, decimal storage — unresolved
+
+`runners.withdrawn_at_odds` is `NUMERIC(10,3)` and `docs/01` §4.2 makes decimal
+the canonical internal form. The table above is fractional. Converting leaves
+**gaps**, because fractional prices are discrete:
+
+```
+1.83 – 1.95 → 50p     gap: 1.96 – 1.99
+2.00 – 2.20 → 45p     gap: 2.21 – 2.24
+2.25 – 2.50 → 40p     gap: 2.51 – 2.59
+2.60 – 2.75 → 35p     gap: 2.76 – 2.79
+2.80 – 3.25 → 30p     gap: 3.26 – 3.39
+3.40 – 4.00 → 25p     …
+```
+
+The previous §5.1 closed the gaps by extending each band **upward**, which
+shifted every band one rung and is the bug being fixed here. `racingalpha`
+closes them **downward** and consequently puts decimal 3.25 at 25p where four
+sources put 9/4 (= 3.25) at 30p — a contradiction at an exact boundary.
+
+**A decimal price that falls in a gap — an exchange SP of 2.32, say — has no
+defined deduction.** No third-party source addresses it.
+
+**This is a blocking question for S8.** It needs a human decision, recorded in
+`docs/08`, before the rule table is written. It is not a detail: it decides real
+money on every Rule 4 race whose withdrawn price came from a decimal feed.
 
 ### 5.2 Application
 

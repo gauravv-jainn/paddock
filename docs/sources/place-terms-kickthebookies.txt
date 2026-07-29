@@ -1,0 +1,47 @@
+SOURCE:     https://kickthebookies.com/each-way-betting-explained-uk-racing-place-terms-payouts-worked-examples-kickthebookies/
+FETCHED:    2026-07-29
+FETCHED BY: WebFetch
+CLASS:      third-party guide. NOT a bookmaker's published rules page.
+
+--- BEGIN FETCHED CONTENT ---
+
+# Each-Way Betting Place Terms & Examples
+
+## Official Place Terms Tables
+
+**Non-Handicap Races:**
+| Runners | Places Paid | Place Fraction |
+|---------|-------------|----------------|
+| 2-4 | - | - |
+| 5-7 | 1-2 | 1/4 |
+| 8+ | 1-3 | 1/5 |
+
+**Handicap Races:**
+| Runners | Places Paid | Place Fraction |
+|---------|-------------|----------------|
+| 2-4 | - | - |
+| 5-7 | 1-2 | 1/4 |
+| 8-11 | 1-3 | 1/5 |
+| 12-15 | 1-3 | 1/4 |
+| 16+ | 1-4 | 1/4 |
+
+## Worked Examples
+
+Example A - Horse Wins:
+"£5 EW (total £10). Horse wins. Win part: £5 @ 10/1 -> return £55. Place part:
+£5 @ 2/1 -> return £15. Total return £70"
+
+Example B - Place Only:
+"Same bet; horse finishes 2nd. Win part loses. Place part: £15 return.
+Total return £15"
+
+Example C - Loss:
+"Horse finishes outside places. Both parts lose; return £0."
+
+The guide emphasises checking "current EW terms on your slip" as bookmakers
+frequently offer extra places, particularly in handicaps.
+
+--- END FETCHED CONTENT ---
+
+NOTE: this is the ONLY source fetched that splits the table by handicap status
+across the full range, and it matches docs/05 section 4 exactly, row for row.

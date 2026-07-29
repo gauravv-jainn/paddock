@@ -1,0 +1,33 @@
+FETCH LOG — UK bookmaker rules pages
+DATE: 2026-07-29
+TOOL: WebFetch
+
+Every attempt to retrieve a bookmaker's own published rules page failed. This
+file is the evidence for that claim, so the gap in the source base is a
+recorded fact rather than an assertion.
+
+  bet365          https://www.bet365.com/rules/horse-racing            403
+  William Hill    https://sports.williamhill.com/betting/en-gb/rules   403
+  Paddy Power     https://www.paddypower.com/betting-rules             403
+  Sky Bet         https://www.skybet.com/rules                         403
+  Betfred         https://www.betfred.com/rules                        403
+  BoyleSports     https://www.boylesports.com/betting-rules            403
+  Ladbrokes       https://sports.ladbrokes.com/rules/horse-racing      301 -> www.ladbrokes.com,
+                                                                       then truncated/blocked
+  Coral           https://www.coral.co.uk/en/sports/rules/horse-racing truncated/blocked
+  Betfair help    https://help.betfair.com/contents/itemId/1288        DNS NXDOMAIN
+  Betfair support https://support.betfair.com/...                      403
+  Sky Bet support https://support.skybet.com/...                       403
+  Paddy Power help https://helpcenter.paddypower.com/...               403
+  Smarkets help   https://help.smarkets.com/...                        403
+  Racing Post     https://www.racingpost.com/news/rule-4-...           404
+  At The Races    https://www.attheraces.com/betting-guide/rule-4      JS-gated, no content
+  Tattersalls Cttee https://thetattersallscommittee.co.uk/rules-on-betting/  DNS NXDOMAIN
+
+WebFetch itself works — the third-party guide sites in this directory were
+retrieved with the same tool on the same day. The blocking is specific to
+gambling operators and their help subdomains.
+
+CONSEQUENCE: the four-bookmaker cross-check that was asked for could not be
+performed. What is in COMPARISON.md is a cross-check of third-party guides,
+which is a weaker class of evidence. O4 in docs/08 remains open.
