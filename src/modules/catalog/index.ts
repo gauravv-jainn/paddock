@@ -1,3 +1,12 @@
+export { ingestRange, type IngestOptions, type IngestReport } from "./ingest";
+export {
+  getRacecard,
+  listMeetings,
+  type MeetingListItem,
+  type Racecard,
+  type RacecardRunner,
+} from "./read";
+export { datesInRange } from "./mapping";
 export {
   MEETING_STATUSES,
   PERSON_KINDS,

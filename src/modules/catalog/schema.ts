@@ -86,11 +86,13 @@ export const horses = pgTable(
     dam: text(),
   },
   (t) => [
-    unique("horses_name_country_code_foaled_year_key").on(
-      t.name,
-      t.countryCode,
-      t.foaledYear,
-    ),
+    // NULLS NOT DISTINCT is a deliberate addition to docs/04 §4. Two of the
+    // three key columns are nullable, and under Postgres' default NULLS
+    // DISTINCT a horse with no breeding suffix or no foaling year would insert
+    // a fresh row on every ingestion run instead of matching the existing one.
+    unique("horses_name_country_code_foaled_year_key")
+      .on(t.name, t.countryCode, t.foaledYear)
+      .nullsNotDistinct(),
   ],
 );
 

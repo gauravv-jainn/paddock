@@ -1,0 +1,2 @@
+ALTER TABLE "horses" DROP CONSTRAINT "horses_name_country_code_foaled_year_key";--> statement-breakpoint
+ALTER TABLE "horses" ADD CONSTRAINT "horses_name_country_code_foaled_year_key" UNIQUE NULLS NOT DISTINCT("name","country_code","foaled_year");
