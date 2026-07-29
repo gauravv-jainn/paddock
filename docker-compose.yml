@@ -1,0 +1,36 @@
+# Local PostgreSQL for development and tests.
+#
+#   docker compose up -d
+#   docker compose exec postgres psql -U paperhorse -d paperhorse_dev
+#
+# Two databases on one server:
+#   paperhorse_dev   DATABASE_URL       — migrations, the app, the worker
+#   paperhorse_test  TEST_DATABASE_URL  — the database-backed suites
+#
+# The test suites TRUNCATE the tables they touch. Keeping them on a separate
+# database is what makes that safe; never point TEST_DATABASE_URL at dev.
+services:
+  postgres:
+    # docs/04 specifies PostgreSQL 16.
+    image: postgres:16-alpine
+    container_name: paperhorse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paperhorse
+      POSTGRES_PASSWORD: paperhorse
+      POSTGRES_DB: paperhorse_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - paperhorse-pgdata:/var/lib/postgresql/data
+      # Creates paperhorse_test on first boot. Runs only when the volume is
+      # empty; to re-run it, `docker compose down -v` first.
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/10-init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperhorse -d paperhorse_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  paperhorse-pgdata:
