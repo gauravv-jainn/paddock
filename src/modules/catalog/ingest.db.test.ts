@@ -106,12 +106,19 @@ describe.skipIf(!url)("archive ingestion", () => {
       regions: ["GB"] as const,
     };
 
-    await ingestRange({ ...range, regions: ["GB"] }, db);
+    const run1 = await ingestRange({ ...range, regions: ["GB"] }, db);
     const after1 = await rowCounts();
 
-    await ingestRange({ ...range, regions: ["GB"] }, db);
+    const run2 = await ingestRange({ ...range, regions: ["GB"] }, db);
     const after2 = await rowCounts();
 
+    // The second run must SUCCEED and change nothing. Asserting only that the
+    // counts are unchanged is not enough: ingestRange collects per-race errors
+    // into `skipped`, so a second run that blew up on every race would also
+    // leave the counts alone.
+    expect(run2.skipped).toEqual([]);
+    expect(run2.races).toBe(run1.races);
+    expect(run2.runners).toBe(run1.runners);
     expect(after2).toEqual(after1);
     // And the counts are what the fixture actually contains, so a run that
     // silently wrote nothing at all cannot satisfy this either.
