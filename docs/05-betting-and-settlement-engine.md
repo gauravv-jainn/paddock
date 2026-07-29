@@ -157,96 +157,130 @@ Place terms are determined by the **number of runners that actually start**, not
 
 When a horse is withdrawn after the market has formed but before the race, remaining runners' true chances increase. Fixed-odds bets already struck at the old price are reduced by a deduction based on the withdrawn horse's price at withdrawal.
 
-### 5.1 The table (Tattersalls Rule 4)
+### 5.1 The band table — fractional pairs, integer comparison
 
-> **Replaced 2026-07-29.** The decimal table that stood here was wrong from
-> "Evens" upward — it omitted the `20/21 – 5/6 → 50p` band, so ten consecutive
-> rows were one rung too severe. Evidence and the full six-source comparison:
-> `docs/sources/COMPARISON.md`.
+> **Rewritten 2026-07-29 per `docs/08` D14.** The lookup input is a **fraction**,
+> not a decimal. Bands are stored as integer numerator/denominator pairs and
+> compared with integer arithmetic. No float, no decimal, anywhere in the lookup.
 >
 > **Source class: third-party guides, NOT bookmakers.** All sixteen attempts to
-> fetch a UK bookmaker's published rules page were blocked
+> fetch a UK bookmaker's rules page were blocked
 > (`docs/sources/BLOCKED-bookmakers.txt`). O4 in `docs/08` is still open.
 
-**The bands are fractional.** They are published fractionally by every source
-that agrees, and rendering them as decimal is what produced the previous error
-— see §5.1.1.
+The withdrawn price arrives as `runners.withdrawn_at_fraction_num` /
+`_den`. `runners.withdrawn_at_odds` is display and analytics only and is
+**never read here**.
 
-| Withdrawn horse's price | Deduction (pence per £1 of winnings) |
-|---|---|
-| 1/9 or shorter | 90p |
-| 2/11 – 2/17 | 85p |
-| 1/4 – 1/5 | 80p |
-| 3/10 – 2/7 | 75p |
-| 2/5 – 1/3 | 70p |
-| 8/15 – 4/9 | 65p |
-| 8/13 – 4/7 | 60p ⚠️ |
-| 4/5 – 4/6 | 55p ⚠️ |
-| 20/21 – 5/6 | 50p |
-| Evens – 6/5 | 45p |
-| 5/4 – 6/4 | 40p |
-| 8/5 – 7/4 | 35p |
-| 9/5 – 9/4 | 30p |
-| 12/5 – 3/1 | 25p |
-| 16/5 – 4/1 | 20p |
-| 9/2 – 11/2 | 15p |
-| 6/1 – 9/1 | 10p |
-| 10/1 – 14/1 | 5p ⚠️ |
-| Over 14/1 | no deduction |
+| # | Band (inclusive) | num/den from | num/den to | Deduction |
+|---|---|---|---|---|
+| 1 | 1/9 or shorter | — | 1 / 9 | 90p |
+| 2 | 2/11 – 2/17 | 2 / 17 | 2 / 11 | 85p |
+| 3 | 1/4 – 1/5 | 1 / 5 | 1 / 4 | 80p |
+| 4 | 3/10 – 2/7 | 2 / 7 | 3 / 10 | 75p |
+| 5 | 2/5 – 1/3 | 1 / 3 | 2 / 5 | 70p |
+| 6 | 8/15 – 4/9 | 4 / 9 | 8 / 15 | 65p |
+| 7 | 8/13 – 4/7 | 4 / 7 | 8 / 13 | 60p ⚠️ |
+| 8 | 4/5 – 4/6 | 4 / 6 | 4 / 5 | 55p ⚠️ |
+| 9 | 20/21 – 5/6 | 5 / 6 | 20 / 21 | 50p |
+| 10 | Evens – 6/5 | 1 / 1 | 6 / 5 | 45p |
+| 11 | 5/4 – 6/4 | 5 / 4 | 6 / 4 | 40p |
+| 12 | 8/5 – 7/4 | 8 / 5 | 7 / 4 | 35p |
+| 13 | 9/5 – 9/4 | 9 / 5 | 9 / 4 | 30p |
+| 14 | 12/5 – 3/1 | 12 / 5 | 3 / 1 | 25p |
+| 15 | 16/5 – 4/1 | 16 / 5 | 4 / 1 | 20p |
+| 16 | 9/2 – 11/2 | 9 / 2 | 11 / 2 | 15p |
+| 17 | 6/1 – 9/1 | 6 / 1 | 9 / 1 | 10p |
+| 18 | 10/1 – 14/1 | 10 / 1 | 14 / 1 | 5p ⚠️ |
+| 19 | Over 14/1 | 14 / 1 | — | 0p |
+
+Rows 1–8 are odds-on and read "shorter than" downward; rows 9–19 read upward.
+Both ends are inclusive.
 
 ```
-VERIFY: 17 of 19 rows unanimous across four independent sources —
+VERIFY: rows 1-6 and 9-19 — unanimous across four independent sources.
         docs/sources/rule4-geegeez.txt
         docs/sources/rule4-bettingsites.txt
         docs/sources/rule4-nonrunnerstoday.txt
         docs/sources/rule4-horseracingnonrunners.txt
         Checked 2026-07-29. NOT confirmed against any bookmaker.
 
-VERIFY: 60p and 55p rows — three of four sources. rule4-horseracingnonrunners
-        is corrupt at exactly these two rows (it repeats "8/15" as the lower
-        bound of two consecutive bands). Marked ⚠️. Needs a fourth reading.
+VERIFY: row 7 (8/13-4/7 = 60p) — three of four.
+        docs/sources/rule4-geegeez.txt
+        docs/sources/rule4-bettingsites.txt
+        docs/sources/rule4-nonrunnerstoday.txt
+        docs/sources/rule4-horseracingnonrunners.txt is CORRUPT at this row:
+        it repeats "8/15" as the lower bound of two consecutive bands. Marked ⚠️.
 
-VERIFY: 5p row — rule4-geegeez.txt footnotes "Not all bookmakers apply
+VERIFY: row 8 (4/5-4/6 = 55p) — three of four. Same three files agree; the same
+        file is corrupt at the same place. Marked ⚠️.
+
+VERIFY: row 18 (10/1-14/1 = 5p) — four sources agree the band exists, but
+        docs/sources/rule4-geegeez.txt footnotes "Not all bookmakers apply
         deductions at this level." May be operator-specific. Marked ⚠️.
 
-VERIFY: two worked examples from sources whose tables are otherwise unreliable
-        independently land on this table rather than the old one —
-        docs/sources/rule4-oddsworks.txt (2/1 → 30p) and
-        docs/sources/rule4-horseracingnonrunners.txt (6/4 → 40p).
-        Both are carried as fixtures in tests/golden/published.json.
+VERIFY: rows 13 and 11 are independently corroborated by worked examples from
+        sources whose own tables are rejected —
+        docs/sources/rule4-oddsworks.txt states 2/1 -> 30p (row 13) and
+        docs/sources/rule4-horseracingnonrunners.txt states 6/4 -> 40p (row 11).
+        Both are carried as fixtures pub-r4-003 and pub-r4-004 in
+        tests/golden/published.json.
 
 REJECTED: docs/sources/rule4-oddsworks.txt table — 8 rows, contradicts four
         sources and its own worked example.
-REJECTED: docs/sources/rule4-racingalpha.txt table — decimal bands that
-        conflict at boundaries, self-overlapping fractional column.
+REJECTED: docs/sources/rule4-racingalpha.txt table — decimal-primary bands that
+        conflict at exact boundaries (it puts 3.25 at 25p; four sources put
+        9/4 = 3.25 at 30p) and a self-overlapping fractional column. That
+        contradiction is the evidence for D14.
 ```
 
-### 5.1.1 Fractional bands, decimal storage — unresolved
+#### Comparison is integer-only
 
-`runners.withdrawn_at_odds` is `NUMERIC(10,3)` and `docs/01` §4.2 makes decimal
-the canonical internal form. The table above is fractional. Converting leaves
-**gaps**, because fractional prices are discrete:
+A fractional price `a/b` is compared against a band bound `c/d` by cross
+multiplication. `a/b > c/d` iff `a*d > c*b`, for positive denominators. No
+division, so no float and no rounding:
 
+```ts
+/** Both prices as integer pairs. Returns -1, 0 or 1. Never converts. */
+function compareFractions(a: Fraction, b: Fraction): -1 | 0 | 1 {
+  const left = a.num * b.den;
+  const right = b.num * a.den;
+  return left < right ? -1 : left > right ? 1 : 0;
+}
 ```
-1.83 – 1.95 → 50p     gap: 1.96 – 1.99
-2.00 – 2.20 → 45p     gap: 2.21 – 2.24
-2.25 – 2.50 → 40p     gap: 2.51 – 2.59
-2.60 – 2.75 → 35p     gap: 2.76 – 2.79
-2.80 – 3.25 → 30p     gap: 3.26 – 3.39
-3.40 – 4.00 → 25p     …
-```
 
-The previous §5.1 closed the gaps by extending each band **upward**, which
-shifted every band one rung and is the bug being fixed here. `racingalpha`
-closes them **downward** and consequently puts decimal 3.25 at 25p where four
-sources put 9/4 (= 3.25) at 30p — a contradiction at an exact boundary.
+`9/4` and `2.25` are the same number, but only one of them can be compared
+without leaving the integers. That is the whole of D14.
 
-**A decimal price that falls in a gap — an exchange SP of 2.32, say — has no
-defined deduction.** No third-party source addresses it.
+#### 5.1.1 A decimal-only feed refuses; it does not guess
 
-**This is a blocking question for S8.** It needs a human decision, recorded in
-`docs/08`, before the rule table is written. It is not a detail: it decides real
-money on every Rule 4 race whose withdrawn price came from a decimal feed.
+`withdrawn_at_fraction_*` is null whenever the feed supplied a decimal that is
+not an exact match on the fractional ladder. **Null does not mean "no
+deduction".** It means the race cannot be auto-settled.
+
+Required behaviour, mirroring the pattern already built for
+`capabilities.deadHeatFlags` (`src/modules/providers/capabilities.ts`), which
+refuses a result it cannot describe rather than flattening it:
+
+1. `settle()` refuses the bet and returns a review outcome.
+2. The race is flagged for manual review.
+3. The reason is recorded in `settlements.calculation` — which price, and that
+   it was not on the ladder.
+
+The ladder shipped in migration `0010_sticky_spitfire.sql` is the 35 band
+bounds above plus the 8 prices named in harvested worked examples: 43 entries,
+each with its provenance in the migration. It is **deliberately incomplete**.
+An incomplete ladder refuses more often than strictly necessary, which is the
+safe direction.
+
+Two facts that make this concrete:
+
+- **Twelve of the 43 ladder prices cannot be represented exactly at
+  `NUMERIC(10,3)`.** `8/13` is 1.6153846…, `4/7` is 1.5714285…, `20/21` is
+  1.9523809…. The decimal column is lossy for the very prices the rule is
+  keyed on.
+- **An exchange price such as 2.32 or 3.30 is on no fractional ladder at all.**
+  Verified against the shipped migration: 3.000 → `2/1`, 1.615 → `8/13`,
+  2.320 → null, 3.300 → null.
 
 ### 5.2 Application
 

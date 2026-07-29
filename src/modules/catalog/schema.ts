@@ -221,7 +221,28 @@ export const runners = pgTable(
     weightLb: smallint(),
     officialRating: smallint(),
     status: text().notNull().default("declared"),
-    /** SETTLEMENT INPUT. Required to compute a Rule 4 deduction. */
+    /**
+     * SETTLEMENT INPUT — the sole input to the Rule 4 band lookup (docs/08 D14).
+     *
+     * Stored as a fraction because that is the domain: the deduction is set
+     * from the bookmaker's announced board price, which lives on the
+     * fractional ladder by construction. Comparison against the band table is
+     * integer arithmetic on these two columns — no float, no decimal, anywhere
+     * in the lookup.
+     *
+     * Null when the feed gave a decimal that is not an exact ladder match. A
+     * null here does NOT mean "no deduction"; it means the race cannot be
+     * auto-settled and must be flagged for review.
+     */
+    withdrawnAtFractionNum: integer(),
+    withdrawnAtFractionDen: integer(),
+    /**
+     * DISPLAY AND ANALYTICS ONLY. Never read by settle() (docs/08 D14).
+     *
+     * NUMERIC(10,3) cannot even represent much of the fractional ladder
+     * exactly — 8/13 is 1.6153846..., 20/21 is 1.9523809... — which is why
+     * this is not the settlement input.
+     */
     withdrawnAtOdds: numeric({ precision: 10, scale: 3 }),
     startingPrice: numeric({ precision: 10, scale: 3 }),
     finishPosition: smallint(),
@@ -235,6 +256,15 @@ export const runners = pgTable(
       sql`${t.status} in ('declared','non_runner','withdrawn','reserve')`,
     ),
     check("runners_dead_heat_count_check", sql`${t.deadHeatCount} >= 1`),
+    // Both columns or neither — half a fraction is not a price.
+    check(
+      "runners_withdrawn_fraction_complete",
+      sql`(${t.withdrawnAtFractionNum} is null) = (${t.withdrawnAtFractionDen} is null)`,
+    ),
+    check(
+      "runners_withdrawn_fraction_positive",
+      sql`${t.withdrawnAtFractionNum} is null or (${t.withdrawnAtFractionNum} > 0 and ${t.withdrawnAtFractionDen} > 0)`,
+    ),
     unique("runners_race_id_cloth_number_key").on(t.raceId, t.clothNumber),
     index("runners_race_id_finish_position_idx").on(t.raceId, t.finishPosition),
     index("runners_horse_id_idx").on(t.horseId),

@@ -71,6 +71,13 @@
       "when": 1785297072206,
       "tag": "0009_sparkling_siren",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785304565641,
+      "tag": "0010_sticky_spitfire",
+      "breakpoints": true
     }
   ]
 }

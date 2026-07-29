@@ -252,6 +252,49 @@ The Phase 0 gate in `SESSIONS.md` gains this alongside the 200 golden vectors.
 
 ---
 
+## D14 — Rule 4's input is a fractional price, not a decimal one.
+
+Resolves O5.
+
+Rule 4 bands are published fractionally because the deduction is set from the
+bookmaker's announced board price, which lives on the fractional ladder by
+construction. Storing a decimal and converting inverts the domain and creates
+gaps that do not exist in the rule.
+
+The 3.25 contradiction is the evidence: four sources put 9/4 at 30p, one puts
+decimal 3.25 at 25p. 9/4 IS 3.25. That divergence was manufactured by
+conversion, not found in the rule.
+
+Resolution:
+- Add runners.withdrawn_at_fraction as two integer columns (numerator,
+  denominator). This is the sole input to the Rule 4 lookup.
+- runners.withdrawn_at_odds (decimal) is retained for display and analytics
+  and is never read by settle().
+- The band table is stored fractionally and compared with integer arithmetic
+  on numerator/denominator. No float, no decimal, anywhere in the lookup.
+- If a feed supplies only a decimal: snap to the standard fractional ladder
+  only on an exact match. On anything else, DO NOT GUESS — refuse to
+  auto-settle, flag the race for review, and record why.
+
+That last rule follows the pattern already built: capabilities.deadHeatFlags
+false refuses rather than flattening. Rule 4 does the same. Silently closing a
+gap upward is exactly what produced the ten-row error this session found.
+
+---
+
+## D15 — Round once, at the end. The disputed fixture stays disputed.
+
+.claude/rules/money.md is unchanged: one rounding, at the end of the
+computation. The three-way dead-heat fixture that expects £23.31 via an
+intermediate £3.33 is kept, marked expectedDisputed: true, and excluded from
+the pass/fail gate while remaining visible in the report.
+
+Bookmakers round intermediate stakes because they settle in physical pennies.
+A paper platform has no such constraint and self-consistency matters more.
+Revisit only when a primary bookmaker source is reachable.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
@@ -260,7 +303,7 @@ The Phase 0 gate in `SESSIONS.md` gains this alongside the 200 golden vectors.
 | O2 | One month of GB/IE archive day files under `ARCHIVE_ROOT` | S6 ingest run |
 | O3 | Written confirmation from the data provider that a paper-trading platform is permitted under their terms | Phase 1 |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
-| O5 | **How an arbitrary decimal price maps into a fractional Rule 4 band.** The bands are published fractionally; `runners.withdrawn_at_odds` is `NUMERIC(10,3)`. Converting leaves gaps (nothing between 1.95 and 2.00), and the sources that close them disagree at exact boundaries — one puts 3.25 at 25p, four put 9/4 (=3.25) at 30p. A decimal exchange price of 2.32 has no defined deduction. See `docs/05` §5.1.1. | S8 — blocking |
+| ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
 
 O1 and O4 are the ones that determine whether this product is correct. Neither
 can be delegated, and no amount of tooling substitutes for them.
@@ -271,4 +314,5 @@ rules found that all sixteen block automated fetches
 agreeing third-party sources, is that `docs/05` §5.1 was **wrong from "Evens"
 upward** — a missing band shifted ten consecutive rows one rung too severe. The
 table is corrected and the evidence is in `docs/sources/`, but the source class
-is guides rather than bookmakers, so **O4 stays open** and O5 is new.
+is guides rather than bookmakers, so **O4 stays open**. O5 was raised by that
+work and is resolved by D14.

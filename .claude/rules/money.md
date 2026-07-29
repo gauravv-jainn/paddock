@@ -18,6 +18,12 @@ These rules apply to settlement, ledger, and bet placement code only.
 - Never `Number()` a monetary bigint to do arithmetic and convert back.
 - Round **once**, at the end of a computation, never at intermediate steps.
 - Rounding is half-up, resolving ties in the user's favour.
+- **Once, at the end.** Not per leg, not per dead-heat share, not per each-way
+  half. `docs/08` D15 holds this against a published example that rounds an
+  intermediate stake: a source states £23.31 for a three-way dead heat on £10 at
+  6/1 by rounding the divided stake to £3.33 first; rounding once at the end
+  gives £23.33 and that is what this codebase does. The fixture is kept, marked
+  `expectedDisputed`, and excluded from the gate.
 - Rule 4 deductions in `docs/05` §5 are quoted in pence per pound, which is the
   same unit the ledger is denominated in. No conversion step exists anywhere.
 - Odds are `number` (decimal form) and are inputs to multipliers only — they
@@ -48,6 +54,39 @@ Forbidden inside `settle()` and anything it calls:
 - logging with side effects
 
 Everything time-dependent is passed in as part of `Bet` or `RuleSet`.
+
+## Rule 4 input is a fraction, and refusing beats guessing
+
+`docs/08` D14. The Rule 4 band lookup takes **`runners.withdrawn_at_fraction_num`
+/ `_den`** — two integers — and nothing else.
+
+- `runners.withdrawn_at_odds` (NUMERIC) is display and analytics only.
+  **`settle()` must never read it.** It cannot even represent much of the
+  fractional ladder: `8/13` is 1.6153846..., `20/21` is 1.9523809...
+- Compare fractions by cross multiplication, not division:
+  `a/b > c/d` iff `a*d > c*b`. No float, no decimal, no rounding in the lookup.
+- **A null fraction does NOT mean "no deduction".** It means the feed gave a
+  decimal that is not an exact match on the fractional ladder.
+
+```ts
+// WRONG — invents a band for a price the rule does not define
+const band = bandForDecimal(runner.withdrawnAtOdds ?? 0);
+
+// RIGHT — refuse, flag, and record why
+if (runner.withdrawnAtFractionNum === null) {
+  return needsReview("withdrawn price is not on the fractional ladder");
+}
+```
+
+When the fraction is null, `settle()` **refuses**: it returns a review outcome,
+the race is flagged for manual review, and the reason goes into
+`settlements.calculation`. This is the same shape as
+`capabilities.deadHeatFlags === false` in `src/modules/providers/capabilities.ts`,
+which refuses a result it cannot describe rather than flattening it.
+
+Silently closing a gap in the band table is not hypothetical: doing exactly
+that is what put a ten-row error into `docs/05` §5.1, where every band from
+"Evens" upward was one rung too severe.
 
 ## Rule tables
 

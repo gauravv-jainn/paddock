@@ -5,11 +5,11 @@
     "units": "All money is GBP pence as strings (docs/08 D1). £10 = \"1000\".",
     "odds": "oddsTaken is decimal, converted from the fractional price the source states. oddsStated preserves the source's own wording. Converting a stated input's representation is not computing an expected value.",
     "raceParams": "Where a source states place terms but not a runner count, race.actualRunners and race.isHandicap are set to a configuration consistent with the stated terms, and statedTerms records what the source actually said. Where the two could disagree, statedTerms wins.",
-    "disputed": "A fixture marked disputed:true must NOT be treated as a passing target. See its disputeReason.",
+    "disputed": "expectedDisputed:true means the SOURCE's stated figure is believed wrong, not that our engine is. Per docs/08 D15 these are excluded from the pass/fail gate but stay visible in the report. loadPublishedVectors() returns them in `disputed`, never in `graded`.",
     "sourceClass": "THIRD-PARTY GUIDES, NOT BOOKMAKERS. All sixteen bookmaker fetches were blocked — docs/sources/BLOCKED-bookmakers.txt. Two of the six sources publish deduction tables that are provably wrong (docs/sources/COMPARISON.md §4); their worked examples are used, their tables are not.",
-    "notGraded": "This file does not replace races.json. It contains no real races, no finishing fields, no dead-heat-for-final-place, no non-runner-changes-band cases. It is a smoke test built from arithmetic other people published, not the 200-race regression suite tests/golden/README.md requires."
+    "notGraded": "This file does not replace races.json. It contains no real races, no finishing fields, no dead-heat-for-final-place, no non-runner-changes-band cases. It is a smoke test built from arithmetic other people published, not the 200-race regression suite tests/golden/README.md requires.",
+    "rule4Input": "Per docs/08 D14 the Rule 4 lookup input is a FRACTION. Each Rule 4 vector carries race.withdrawnAtFraction as {num,den} where the source states a fractional price. A vector whose source states only a decimal that is not on the ladder would be unsettleable, and none of the 27 is in that state — see the audit in the session report."
   },
-
   "vectors": [
     {
       "id": "pub-r4-001",
@@ -18,9 +18,20 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "a 5p rule 4 deduction on a £100 stake on a 10/1 winner will reduce your profit by 5%. The profit on this bet would ordinarily be £1,000 so 5% of that is £50 - that's the deduction. The total return on the bet would be £1,050.",
-      "race": { "rule4Pence": 5, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "10000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 5,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "10000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "105000",
       "expectedStatus": "WON"
     },
@@ -31,9 +42,20 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "If you staked £10 on a horse at 6/1 and the Rule 4 deduction is 25p, your gross profit was £60. The deduction is £60 x 0.25 = £15. Your adjusted profit is £45, and your total return is £55 (£45 plus your £10 stake).",
-      "race": { "rule4Pence": 25, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "1000", "oddsStated": "6/1", "oddsTaken": 7.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 25,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "1000",
+        "oddsStated": "6/1",
+        "oddsTaken": 7.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "5500",
       "expectedStatus": "WON"
     },
@@ -45,9 +67,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "You have backed a winner at 4/1. Before the off, the 2/1 favourite is withdrawn at the start. The Tattersalls Rule 4 scale dictates that a withdrawal at 2/1 triggers a deduction of 30 pence in the pound of winnings. Your £10 winning stake would, without any deduction, pay £40 in winnings (plus the £10 stake back, total £50). The deduction of 30p in the pound takes 30% off the £40 of winnings - £12. Adjusted winnings are £28, total return £38.",
       "note": "Doubles as band evidence: 2/1 sits in 9/5-9/4, which the four-source table puts at 30p and the OLD docs/05 §5.1 put at 35p. This example agrees with the new table. Its source's own deduction table is discarded as unreliable — the example is not.",
-      "race": { "rule4Pence": 30, "withdrawnAtOddsStated": "2/1", "withdrawnAtOdds": 3.0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "1000", "oddsStated": "4/1", "oddsTaken": 5.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 30,
+        "withdrawnAtOddsStated": "2/1",
+        "withdrawnAtOdds": 3.0,
+        "status": "RESULT",
+        "withdrawnAtFraction": {
+          "num": 2,
+          "den": 1
+        }
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "1000",
+        "oddsStated": "4/1",
+        "oddsTaken": 5.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "3800",
       "expectedStatus": "WON"
     },
@@ -59,9 +98,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "You place a £20 win bet on Horse A at 4/1. Before the race, Horse B - the 6/4 joint-favourite - is withdrawn...a 40p deduction...winnings would be £80...£80 x 0.40 = £32. Your adjusted winnings are £80 minus £32, which equals £48. Add your £20 stake back, and the total return is £68 instead of £100.",
       "note": "Band evidence: 6/4 sits in 5/4-6/4, four sources say 40p, old docs/05 said 45p. Agrees with the new table.",
-      "race": { "rule4Pence": 40, "withdrawnAtOddsStated": "6/4", "withdrawnAtOdds": 2.5, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "2000", "oddsStated": "4/1", "oddsTaken": 5.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 40,
+        "withdrawnAtOddsStated": "6/4",
+        "withdrawnAtOdds": 2.5,
+        "status": "RESULT",
+        "withdrawnAtFraction": {
+          "num": 6,
+          "den": 4
+        }
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "2000",
+        "oddsStated": "4/1",
+        "oddsTaken": 5.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "6800",
       "expectedStatus": "WON"
     },
@@ -73,9 +129,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Same bet - £20 on Horse A at 4/1 - but this time the withdrawn horse was a 12/1 outsider...5p...Your winnings are still £80. The deduction: £80 x 0.05 = £4. Adjusted winnings: £76. Total return with stake: £96.",
       "note": "Exercises the smallest non-zero band, which docs/05 §5.1 flags as possibly operator-specific.",
-      "race": { "rule4Pence": 5, "withdrawnAtOddsStated": "12/1", "withdrawnAtOdds": 13.0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "2000", "oddsStated": "4/1", "oddsTaken": 5.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 5,
+        "withdrawnAtOddsStated": "12/1",
+        "withdrawnAtOdds": 13.0,
+        "status": "RESULT",
+        "withdrawnAtFraction": {
+          "num": 12,
+          "den": 1
+        }
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "2000",
+        "oddsStated": "4/1",
+        "oddsTaken": 5.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "9600",
       "expectedStatus": "WON"
     },
@@ -87,9 +160,38 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Two horses are withdrawn...Horse B was priced at 3/1 (25p deduction) and Horse C at 5/1 (15p deduction...deductions stack: 25p + 15p = 40p...£80 x 0.40 = £32. Adjusted winnings: £48. Total return: £68.",
       "note": "MULTIPLE WITHDRAWALS. Confirms docs/05 §5.2 rule 2 — deductions add before being applied, they are not applied in sequence. Applying 25p then 15p to the remainder would give £51, not £48.",
-      "race": { "rule4Pence": 40, "withdrawnAtOddsStated": ["3/1", "5/1"], "withdrawnAtOdds": [4.0, 6.0], "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "2000", "oddsStated": "4/1", "oddsTaken": 5.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 40,
+        "withdrawnAtOddsStated": [
+          "3/1",
+          "5/1"
+        ],
+        "withdrawnAtOdds": [
+          4.0,
+          6.0
+        ],
+        "status": "RESULT",
+        "withdrawnAtFraction": [
+          {
+            "num": 3,
+            "den": 1
+          },
+          {
+            "num": 5,
+            "den": 1
+          }
+        ]
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "2000",
+        "oddsStated": "4/1",
+        "oddsTaken": 5.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "6800",
       "expectedStatus": "WON"
     },
@@ -100,14 +202,29 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "If you stake £10 at 6.0 (5/1) and a 3.0 non-runner triggers a 30p Rule 4, your winnings of £50 are cut by 30%: £15 comes off, you receive £35 winnings + £10 stake = £45.",
-      "note": "Source's own table is discarded (docs/sources/COMPARISON.md §4); this example is retained and agrees with the four-source table at 3.0 → 30p.",
-      "race": { "rule4Pence": 30, "withdrawnAtOdds": 3.0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "1000", "oddsStated": "5/1", "oddsTaken": 6.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "note": "Source's own table is discarded (docs/sources/COMPARISON.md §4); this example is retained and agrees with the four-source table at 3.0 → 30p. D14 NOTE: this source states the withdrawn price as decimal 3.0 only. 3.0 is an exact ladder match for 2/1, so it snaps and settles. Had the source said 2.32 or 3.30, this vector would be unsettleable and would have to be dropped.",
+      "race": {
+        "rule4Pence": 30,
+        "withdrawnAtOdds": 3.0,
+        "status": "RESULT",
+        "withdrawnAtFraction": {
+          "num": 2,
+          "den": 1
+        }
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "1000",
+        "oddsStated": "5/1",
+        "oddsTaken": 6.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "4500",
       "expectedStatus": "WON"
     },
-
     {
       "id": "pub-ew-001-win",
       "source": "https://kickthebookies.com/each-way-betting-explained-uk-racing-place-terms-payouts-worked-examples-kickthebookies/",
@@ -115,10 +232,27 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "£5 EW (total £10). Horse wins. Win part: £5 @ 10/1 -> return £55. Place part: £5 @ 2/1 -> return £15. Total return £70",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "7000",
       "expectedStatus": "WON"
     },
@@ -130,10 +264,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Same bet; horse finishes 2nd. Win part loses. Place part: £15 return. Total return £15",
       "note": "The win half loses and the place half wins — the PARTIAL settlement path.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "1500",
       "expectedStatus": "PARTIAL"
     },
@@ -144,10 +295,27 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Horse finishes outside places. Both parts lose; return £0.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 6, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 6,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "0",
       "expectedStatus": "LOST"
     },
@@ -159,9 +327,20 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Win part: £5 @ 10/1 -> return £55",
       "note": "The win half of the each-way example, stated as its own return. Two sources state the identical figure.",
-      "race": { "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "500", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "500",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "5500",
       "expectedStatus": "WON"
     },
@@ -173,10 +352,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Place part: £5 @ 2/1 -> return £15",
       "note": "Pins the place-fraction arithmetic: 1/5 of 10/1 is 2/1, NOT 11.0 x 0.2. docs/05 and tests/golden/README.md both warn about this exact error.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "PLACE", "stakeMinor": "500", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "PLACE",
+        "stakeMinor": "500",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "1500",
       "expectedStatus": "WON"
     },
@@ -188,10 +383,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "£70 (£60 profit + £10 stake)",
       "note": "10/1, £5 each-way, stated as 1/5 for places 1-3. Independent restatement of pub-ew-001 by a different source.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 9, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 9,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "7000",
       "expectedStatus": "WON"
     },
@@ -203,10 +415,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "2nd or 3rd -> £15",
       "note": "Third place specifically — the LAST paid place on 3-place terms, so it pins the boundary.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 9, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 3, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 9,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 3,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "1500",
       "expectedStatus": "PARTIAL"
     },
@@ -218,10 +447,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "4th+ -> £0",
       "note": "Fourth place on 3-place terms — one outside the boundary. Pairs with pub-ew-007 to pin it from both sides.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 9, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 4, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 9,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 4,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "0",
       "expectedStatus": "LOST"
     },
@@ -233,10 +479,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "£10 each-way (£20 total stake) ... Total return: £140 from a £20 outlay",
       "note": "Source states 12 runners. Its returns imply a 1/5 place fraction, so this only holds for a NON-HANDICAP 12-runner race — a handicap of that size pays 1/4 and would return £145. isHandicap is set false accordingly. This source is the lone dissenter on handicap 12-15 (docs/05 §4); the fixture is written to the consensus reading, not to its table.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 12, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "1000", "totalStakeMinor": "2000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 12,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "1000",
+        "totalStakeMinor": "2000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "14000",
       "expectedStatus": "WON"
     },
@@ -247,10 +510,27 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Total return: £30 from a £20 outlay",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 12, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "1000", "totalStakeMinor": "2000", "oddsStated": "10/1", "oddsTaken": 11.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 12,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "1000",
+        "totalStakeMinor": "2000",
+        "oddsStated": "10/1",
+        "oddsTaken": 11.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "3000",
       "expectedStatus": "PARTIAL"
     },
@@ -262,10 +542,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "£10 each-way (£20 total) ... Total return: £56",
       "note": "Short-priced each-way. The place fraction produces 3/5 — a non-integer fractional price, which is where naive rounding shows up.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 12, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "1000", "totalStakeMinor": "2000", "oddsStated": "3/1", "oddsTaken": 4.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 12,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "1000",
+        "totalStakeMinor": "2000",
+        "oddsStated": "3/1",
+        "oddsTaken": 4.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "5600",
       "expectedStatus": "WON"
     },
@@ -277,10 +574,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Return of £16 from £20 stake. You've lost £4 even though the horse placed.",
       "note": "A PLACED bet that still loses money. The engine must return 1600 and report the bet as PARTIAL, not as a loss — status and P&L are different questions.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 12, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "1000", "totalStakeMinor": "2000", "oddsStated": "3/1", "oddsTaken": 4.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 12,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "1000",
+        "totalStakeMinor": "2000",
+        "oddsStated": "3/1",
+        "oddsTaken": 4.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "1600",
       "expectedStatus": "PARTIAL"
     },
@@ -292,10 +606,27 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Win portion: £5 x 40/1 = £200 + £5 stake = £205 / Place portion: £5 x 8/1 (one-fifth of 40/1) = £40 + £5 stake = £45 / Total return: £250",
       "note": "Long price. States the place fraction arithmetic explicitly — one-fifth of 40/1 is 8/1.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "EACH_WAY", "unitStakeMinor": "500", "totalStakeMinor": "1000", "oddsStated": "40/1", "oddsTaken": 41.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "EACH_WAY",
+        "unitStakeMinor": "500",
+        "totalStakeMinor": "1000",
+        "oddsStated": "40/1",
+        "oddsTaken": 41.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "25000",
       "expectedStatus": "WON"
     },
@@ -306,9 +637,20 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Win portion: £5 x 40/1 = £200 + £5 stake = £205",
-      "race": { "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "500", "oddsStated": "40/1", "oddsTaken": 41.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 1 },
+      "race": {
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "500",
+        "oddsStated": "40/1",
+        "oddsTaken": 41.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "20500",
       "expectedStatus": "WON"
     },
@@ -320,10 +662,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "5/1 = £5 return",
       "note": "£2.50 each-way, place part only, 1/5 terms. One-fifth of 5/1 is evens.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "PLACE", "stakeMinor": "250", "oddsStated": "5/1", "oddsTaken": 6.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "PLACE",
+        "stakeMinor": "250",
+        "oddsStated": "5/1",
+        "oddsTaken": 6.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "500",
       "expectedStatus": "WON"
     },
@@ -335,10 +693,26 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "20/1 = £12.50 return",
       "note": "Non-integer stake (£2.50) at 1/5 of 20/1 = 4/1. Exercises pence-level rounding.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "PLACE", "stakeMinor": "250", "oddsStated": "20/1", "oddsTaken": 21.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "PLACE",
+        "stakeMinor": "250",
+        "oddsStated": "20/1",
+        "oddsTaken": 21.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "1250",
       "expectedStatus": "WON"
     },
@@ -349,10 +723,26 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "40/1 = £22.50 return",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "PLACE", "stakeMinor": "250", "oddsStated": "40/1", "oddsTaken": 41.0 },
-      "outcome": { "finishPosition": 3, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "PLACE",
+        "stakeMinor": "250",
+        "oddsStated": "40/1",
+        "oddsTaken": 41.0
+      },
+      "outcome": {
+        "finishPosition": 3,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "2250",
       "expectedStatus": "WON"
     },
@@ -364,14 +754,29 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "100/1 = £52.50 return",
       "note": "Longest price harvested. One-fifth of 100/1 is 20/1.",
-      "statedTerms": { "placesPaid": 3, "placeFraction": "1/5" },
-      "race": { "actualRunners": 10, "isHandicap": false, "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "PLACE", "stakeMinor": "250", "oddsStated": "100/1", "oddsTaken": 101.0 },
-      "outcome": { "finishPosition": 2, "deadHeatCount": 1 },
+      "statedTerms": {
+        "placesPaid": 3,
+        "placeFraction": "1/5"
+      },
+      "race": {
+        "actualRunners": 10,
+        "isHandicap": false,
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "PLACE",
+        "stakeMinor": "250",
+        "oddsStated": "100/1",
+        "oddsTaken": 101.0
+      },
+      "outcome": {
+        "finishPosition": 2,
+        "deadHeatCount": 1
+      },
       "expectedReturnMinor": "5250",
       "expectedStatus": "WON"
     },
-
     {
       "id": "pub-dh-001-two-way",
       "source": "https://fixedoddshorseracinguk.com/articles/dead-heat-rules-betting-payouts/",
@@ -380,9 +785,20 @@
       "verifiedOn": "2026-07-29",
       "sourceQuote": "Consider a £10 win bet at 6/1 in a two-horse dead heat. Your £10 stake becomes two £5 portions. One £5 wins at 6/1, returning £35 (£30 profit plus £5 stake). The other £5 is lost. Your total return is £35 from a £10 investment - £25 profit rather than the £60 profit you'd have received from an outright win.",
       "note": "TWO-WAY DEAD HEAT. Confirms tests/golden/README.md worked example 2: the stake is divided, the odds are not.",
-      "race": { "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "1000", "oddsStated": "6/1", "oddsTaken": 7.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 2 },
+      "race": {
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "1000",
+        "oddsStated": "6/1",
+        "oddsTaken": 7.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 2
+      },
       "expectedReturnMinor": "3500",
       "expectedStatus": "WON"
     },
@@ -393,13 +809,24 @@
       "verifiedBy": "third-party published example",
       "verifiedOn": "2026-07-29",
       "sourceQuote": "That same £10 at 6/1 becomes three £3.33 portions. Only one-third wins: £3.33 x 7.00 = £23.31. From your £10 stake, you receive £23.31 back - a modest profit rather than the life-changing win you might have anticipated.",
-      "disputed": true,
-      "disputeReason": "The source rounds the divided stake to £3.33 BEFORE multiplying by the odds. Rounding once at the end, as .claude/rules/money.md requires, gives £23.33 and not £23.31. A correct engine will FAIL this fixture by 2p. It is recorded because the disagreement is the point: it is a live question about whether intermediate rounding is the industry convention, and no bookmaker source was reachable to settle it. DO NOT treat as a passing target.",
-      "race": { "rule4Pence": 0, "status": "RESULT" },
-      "bet": { "type": "WIN", "stakeMinor": "1000", "oddsStated": "6/1", "oddsTaken": 7.0 },
-      "outcome": { "finishPosition": 1, "deadHeatCount": 3 },
+      "race": {
+        "rule4Pence": 0,
+        "status": "RESULT"
+      },
+      "bet": {
+        "type": "WIN",
+        "stakeMinor": "1000",
+        "oddsStated": "6/1",
+        "oddsTaken": 7.0
+      },
+      "outcome": {
+        "finishPosition": 1,
+        "deadHeatCount": 3
+      },
       "expectedReturnMinor": "2331",
-      "expectedStatus": "WON"
+      "expectedStatus": "WON",
+      "expectedDisputed": true,
+      "expectedDisputedReason": "The source rounds the divided stake to £3.33 BEFORE multiplying by the odds. Rounding once at the end, as .claude/rules/money.md requires, gives £23.33 and not £23.31. A correct engine will FAIL this fixture by 2p. It is recorded because the disagreement is the point: it is a live question about whether intermediate rounding is the industry convention, and no bookmaker source was reachable to settle it. DO NOT treat as a passing target."
     }
   ]
 }
