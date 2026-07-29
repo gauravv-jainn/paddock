@@ -1,0 +1,177 @@
+{
+  "region": "GB",
+  "date": "2024-01-03",
+  "meetings": [
+    {
+      "meetingRef": "test-course",
+      "trackName": "Test Course",
+      "countryCode": "GB",
+      "timezone": "Europe/London",
+      "going": "Placeholder Going",
+      "status": "COMPLETED",
+      "races": [
+        {
+          "raceId": "r1",
+          "name": "Structural Fixture Handicap",
+          "offTime": "2024-01-02T13:00:00+00:00",
+          "distanceYards": 1760,
+          "raceClass": "5",
+          "raceType": "FLAT",
+          "ageBand": "4yo+",
+          "prizeMinor": "1234500",
+          "declaredRunners": 4,
+          "actualRunners": 3,
+          "status": "RESULT",
+          "rule4DeductionPence": 10,
+          "runners": [
+            {
+              "id": "1",
+              "clothNumber": 1,
+              "stallDraw": 1,
+              "horse": {
+                "name": "Test Runner One",
+                "countryCode": "IRE",
+                "foaledYear": 2018,
+                "sex": "g",
+                "sire": null,
+                "dam": null
+              },
+              "jockey": {
+                "name": "Test Jockey A"
+              },
+              "trainer": {
+                "name": "Test Trainer A"
+              },
+              "weightCarriedLb": 130,
+              "officialRating": 70,
+              "status": "DECLARED",
+              "withdrawnAtOdds": null,
+              "startingPrice": 3.5
+            },
+            {
+              "id": "2",
+              "clothNumber": 2,
+              "stallDraw": 2,
+              "horse": {
+                "name": "Test Runner Two",
+                "countryCode": null,
+                "foaledYear": 2019,
+                "sex": "m",
+                "sire": null,
+                "dam": null
+              },
+              "jockey": {
+                "name": "Test Jockey B"
+              },
+              "trainer": {
+                "name": "Test Trainer A"
+              },
+              "weightCarriedLb": 128,
+              "officialRating": 68,
+              "status": "DECLARED",
+              "withdrawnAtOdds": null,
+              "startingPrice": 5.0
+            },
+            {
+              "id": "3",
+              "clothNumber": 3,
+              "stallDraw": 3,
+              "horse": {
+                "name": "Test Runner Three",
+                "countryCode": null,
+                "foaledYear": 2020,
+                "sex": "f",
+                "sire": null,
+                "dam": null
+              },
+              "jockey": null,
+              "trainer": null,
+              "weightCarriedLb": null,
+              "officialRating": null,
+              "status": "DECLARED",
+              "withdrawnAtOdds": null,
+              "startingPrice": 9.0
+            },
+            {
+              "id": "4",
+              "clothNumber": 4,
+              "stallDraw": 4,
+              "horse": {
+                "name": "Test Runner Four",
+                "countryCode": null,
+                "foaledYear": 2017,
+                "sex": "g",
+                "sire": null,
+                "dam": null
+              },
+              "jockey": {
+                "name": "Test Jockey C"
+              },
+              "trainer": {
+                "name": "Test Trainer B"
+              },
+              "weightCarriedLb": 126,
+              "officialRating": 66,
+              "status": "WITHDRAWN",
+              "withdrawnAtOdds": 2.5,
+              "startingPrice": null
+            }
+          ],
+          "odds": {
+            "capturedAt": "2024-01-02T13:00:00+00:00",
+            "source": "SP",
+            "prices": [
+              {
+                "runnerId": "1",
+                "marketType": "WIN",
+                "priceDecimal": 3.5
+              },
+              {
+                "runnerId": "2",
+                "marketType": "WIN",
+                "priceDecimal": 5.0
+              },
+              {
+                "runnerId": "3",
+                "marketType": "WIN",
+                "priceDecimal": 9.0
+              }
+            ]
+          },
+          "result": {
+            "status": "RESULT",
+            "positions": [
+              {
+                "runnerId": "1",
+                "position": 1,
+                "deadHeatWith": [
+                  "2"
+                ],
+                "disqualified": false
+              },
+              {
+                "runnerId": "2",
+                "position": 1,
+                "deadHeatWith": [
+                  "1"
+                ],
+                "disqualified": false
+              },
+              {
+                "runnerId": "3",
+                "position": 3,
+                "deadHeatWith": [],
+                "disqualified": false
+              }
+            ],
+            "nonRunners": [
+              "4"
+            ],
+            "rule4DeductionPence": 10,
+            "amendedAt": null
+          }
+        }
+      ]
+    }
+  ]
+}
