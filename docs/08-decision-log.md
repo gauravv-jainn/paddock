@@ -22,10 +22,21 @@ written — it changes every expected return.
 - `ledger_entries.amount_minor` is **pence**. Base unit, no exceptions.
 - `wallets.currency` defaults to `'GBP'`.
 - Phase 0 has **no currency conversion at all**. Not in accounting, not in
-  display. `users.base_currency` remains in the schema, is set to `'GBP'`, and
-  is read by nothing.
+  display.
+- `users.base_currency` is **dropped in Phase 0** and re-added in Phase 2.
+  Keeping it as a `NOT NULL DEFAULT 'GBP'` column that nothing reads was the
+  original wording, but a column with a default is written on every insert, so
+  "read by nothing" is not a property the schema enforces — it is a promise
+  someone eventually breaks. A column that does not exist cannot be read.
 - Multi-currency display returns in Phase 2, as a presentation layer over a
-  pence ledger. It never touches accounting.
+  pence ledger, and re-adds the column then. It never touches accounting.
+
+> **Implementation status:** the pence ledger, the `'GBP'` default and the
+> removal of USD from every doc are done (commit `cb59933`, `1cf948a`).
+> **Dropping `users.base_currency` is NOT yet applied** — the column still
+> exists. It needs a migration plus the field removed from
+> `src/modules/identity/schema.ts`. Until that lands, this bullet describes an
+> intent, not the schema.
 
 **Rationale.** Every rule in the settlement domain — Rule 4 deductions, each-way
 fractions, place terms — is expressed in the vocabulary of British bookmaking.
@@ -91,6 +102,28 @@ horse on every run and idempotency would be a fiction.
 suffix (`IRE`, `USA`, `GER`). Same name, different meaning, adjacent tables —
 someone will join on them eventually. Rename removes the trap.
 
+**Scope: the whole path, not just the column.** Renaming only the database
+column would have left `HorseRef.countryCode` in the canonical domain model and
+`horse.countryCode` in the archive JSON, sitting next to a genuine
+`meeting.countryCode` — the same trap, one layer up, with the ingest mapper
+quietly translating between the two names. The rename therefore covers:
+
+| Layer | Before | After |
+|---|---|---|
+| `horses` column | `country_code CHAR(3)` | `breeding_suffix CHAR(3)` |
+| unique constraint | `horses_name_country_code_foaled_year_key` | `horses_name_breeding_suffix_foaled_year_key` |
+| domain model (`providers/types.ts`) | `HorseRef.countryCode` | `HorseRef.breedingSuffix` |
+| **archive JSON** (`horse.*`) | `"countryCode"` | `"breedingSuffix"` |
+| racecard read model | `horseCountryCode` | `horseBreedingSuffix` |
+
+`tracks.country_code` and `Meeting.countryCode` are unchanged — those are real
+ISO-3166-1 alpha-2 countries.
+
+The archive format was changed rather than mapped because O2 is still open: no
+real day files exist yet, so this was the cheapest moment it will ever be. Any
+draft day files written before this decision use the old `countryCode` key and
+will be rejected.
+
 ---
 
 ## D7 — Adopt Zod.
@@ -119,8 +152,55 @@ wallet, so P0-02 was specified and never assigned.
 
 All three in one transaction. A user without a wallet must not be representable.
 
+> **Implementation status — atomicity is NOT yet guaranteed.** `register()` is
+> written as `tx ? run(tx) : getDb().transaction(run)`: it opens a transaction
+> only when no executor is passed, and otherwise assumes the caller already has
+> one open. Drizzle's `Database` and its transaction handle are structurally
+> similar enough that passing a plain `db` type-checks and silently runs every
+> statement in autocommit.
+>
+> A probe run on 2026-07-29 confirmed the consequence: with `getHouseWallet()`
+> made to fail — which happens *after* the user and wallet inserts — an
+> orphaned user row and wallet survived, with no opening balance. That is
+> exactly the state D8 says must not be representable.
+>
+> The suite does not catch this. `rolls the whole registration back if any part
+> of it fails` provokes a duplicate-email failure, which occurs on the *first*
+> statement, so there is nothing to roll back either way.
+>
+> Fixing it is a decision, not a typo: either narrow the parameter to a
+> transaction handle so a plain `db` cannot be passed, or always open a
+> transaction and rely on drizzle's nested `.transaction()` emitting a
+> SAVEPOINT when one is already open. **S11 must not build on the current
+> behaviour.**
+
 The house wallet is seeded by migration and may go arbitrarily negative — there
 is no book to balance and no real liability.
+
+**There is exactly one, enforced by a partial unique index:**
+
+```sql
+CREATE UNIQUE INDEX wallets_house_singleton_key
+  ON wallets (kind) WHERE kind = 'house';
+```
+
+Without it `getHouseWallet()` has no deterministic answer — it would be
+selecting one row from an unbounded set, and which one it got would depend on
+physical row order. The index is what lets the lookup be a plain `WHERE kind =
+'house'` with no `ORDER BY` and no ambiguity.
+
+**The migration fails loudly on a database that already has duplicates.** This
+is deliberate. Creating the index on such a database raises
+`duplicate key value ... Key (kind)=(house) is duplicated` and the migration
+aborts, leaving the database untouched. It does not pick a winner and it does
+not delete the losers: house wallets are referenced by `ledger_entries`, the
+ledger is append-only, and no automated rule can decide which balance history
+was the real one. A human resolves it with compensating entries.
+
+This is not hypothetical — it happened during the S1–S6 test database, which
+had accumulated several `kind='house'` wallets from tests that used `house` as
+a throwaway counterparty. The fix there was to recreate a disposable test
+database. On a database with real history, it would not be.
 
 ---
 
