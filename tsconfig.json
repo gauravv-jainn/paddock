@@ -40,7 +40,8 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
+    ".next",
     "node_modules",
-    ".next"
+    "tests/metamorphic"
   ]
 }

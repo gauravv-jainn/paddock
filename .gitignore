@@ -10,3 +10,13 @@ CLAUDE.local.md
 .claude/settings.local.json
 *.log
 .DS_Store
+
+# Ingested archive data and the source dataset — docs/08 D20: ingest, do not
+# redistribute. The dataset licence covers our use, not our republishing it.
+# Leading slash: root-anchored. Without it this also matches
+# src/modules/providers/archive/, silently untracking the adapter's own source.
+/archive/
+*.db
+*.sqlite
+*.sqlite3
+courses.json

@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "tests/metamorphic",
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
+}

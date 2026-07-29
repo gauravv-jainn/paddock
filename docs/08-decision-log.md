@@ -348,13 +348,40 @@ and O6 stays open until one is read.
 
 ---
 
+## D20 — £0 data plan: archive-only, metamorphic verification.
+
+Budget is £0 and the project is a public portfolio piece. That rules out
+Betfair (delayed key is personal-use only; India excluded from licence
+applications) and The Racing API (paid). O3 is closed — there is no provider
+to seek ToS confirmation from. Phase 1 live data is deferred indefinitely.
+
+Data source: free historical results datasets. Ingest, do not redistribute;
+check and record the dataset licence in docs/sources/.
+
+What the archive supports: WIN, PLACE, EACH_WAY on clean races, dead heats,
+field-size boundaries, handicap vs non-handicap.
+What it does not: non-runners, withdrawals, Rule 4. Those stay covered by the
+27 published third-party vectors only, and any archive race is settled with
+rule4 = 0 by construction.
+
+Verification strategy replaces hand-computed golden vectors with three layers:
+1. The 27 published vectors — third-party computed, genuine grading.
+2. Metamorphic properties — relationships that hold without knowing the answer.
+3. Differential implementation — two independent settle() written blind.
+
+Accepted residual risk, recorded deliberately: a systematic error present in
+both implementations and consistent across all inputs would pass all three
+layers. Absolute correctness on archive races is unverified.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
 |---|---|---|
 | O1 | `tests/golden/races.json` — assembled by hand from real results | S8, S9, and every gate after |
 | O2 | One month of GB/IE archive day files under `ARCHIVE_ROOT` | S6 ingest run |
-| O3 | Written confirmation from the data provider that a paper-trading platform is permitted under their terms | Phase 1 |
+| ~~O3~~ | ~~Written ToS confirmation from the data provider~~ — **closed by D20.** There is no paid provider, so there is nobody to ask. Replaced by the obligation to record the free dataset's licence in `docs/sources/`. | — |
 | O4 | Rule 4 and place-terms tables verified against an authoritative source, `VERIFY:` comments filled | S8 |
 | ~~O5~~ | ~~Decimal-to-fractional Rule 4 mapping~~ — **resolved by D14.** The mapping is abolished rather than defined: the fraction is stored and is the sole lookup input. | — |
 | O6 | **The evens band — HIGHEST RISK row in the table.** Three readings exist: 45p (four unanimous sources, adopted by D19), 50p (the old unsourced `docs/05`), 55p (one source cited by `docs/09` §3.3). D19 **decides** the value; it does not **resolve** the disagreement. Stays open until a primary source is read. | S8 |
