@@ -429,3 +429,68 @@ export async function recordBetSettlement(
     .set({ outcome: update.legOutcome })
     .where(eq(betLegs.id, update.legId));
 }
+
+/** One bet belonging to one user, with its leg. Null if it is not theirs. */
+export async function getBetForUser(
+  betId: string,
+  userId: string,
+  tx?: Executor,
+): Promise<SettleableBet | null> {
+  const rows = await (tx ?? getDb())
+    .select({
+      betId: bets.id,
+      userId: bets.userId,
+      walletId: bets.walletId,
+      betType: bets.betType,
+      unitStakeMinor: bets.unitStakeMinor,
+      totalStakeMinor: bets.totalStakeMinor,
+      status: bets.status,
+      settledVersion: bets.settledVersion,
+      returnMinor: bets.returnMinor,
+      legId: betLegs.id,
+      runnerId: betLegs.runnerId,
+      oddsTaken: betLegs.oddsTaken,
+    })
+    .from(bets)
+    .innerJoin(betLegs, eq(betLegs.betId, bets.id))
+    // The user id is part of the WHERE, not checked after the fetch: one
+    // person must not be able to read another's bet by guessing a UUID.
+    .where(and(eq(bets.id, betId), eq(bets.userId, userId)))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) return null;
+  return { ...row, betType: row.betType as BetType, oddsTaken: Number(row.oddsTaken) };
+}
+
+/** A user's bets with the leg attached, newest first. */
+export async function listBetsWithLegsForUser(
+  userId: string,
+  tx?: Executor,
+): Promise<SettleableBet[]> {
+  const rows = await (tx ?? getDb())
+    .select({
+      betId: bets.id,
+      userId: bets.userId,
+      walletId: bets.walletId,
+      betType: bets.betType,
+      unitStakeMinor: bets.unitStakeMinor,
+      totalStakeMinor: bets.totalStakeMinor,
+      status: bets.status,
+      settledVersion: bets.settledVersion,
+      returnMinor: bets.returnMinor,
+      legId: betLegs.id,
+      runnerId: betLegs.runnerId,
+      oddsTaken: betLegs.oddsTaken,
+    })
+    .from(bets)
+    .innerJoin(betLegs, eq(betLegs.betId, bets.id))
+    .where(eq(bets.userId, userId))
+    .orderBy(sql`${bets.placedAt} DESC`);
+
+  return rows.map((r) => ({
+    ...r,
+    betType: r.betType as BetType,
+    oddsTaken: Number(r.oddsTaken),
+  }));
+}

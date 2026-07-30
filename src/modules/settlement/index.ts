@@ -49,3 +49,4 @@ export {
   type SettleRaceStatus,
 } from "./settleRace";
 export { settlements, SETTLEMENT_OUTCOMES, type Settlement } from "./schema";
+export { getCurrentSettlements, getSettlementHistory } from "./read";

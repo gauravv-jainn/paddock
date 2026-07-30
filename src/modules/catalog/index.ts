@@ -26,3 +26,4 @@ export {
   type SettlementRaceRow,
   type SettlementRunnerRow,
 } from "./settlementInputs";
+export { getRunnerLabels, type RunnerLabel } from "./labels";

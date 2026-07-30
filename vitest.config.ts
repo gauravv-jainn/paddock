@@ -20,6 +20,10 @@ export default defineConfig(({ mode }) => {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
+    // tsconfig sets jsx: "preserve" because Next does its own transform. Vitest
+    // does not, so the accessibility tests — which render the real page
+    // components — need the automatic runtime naming here.
+    esbuild: { jsx: "automatic" },
     test: {
       env,
       // `pnpm test:settlement` targets src/modules/settlement, which did not

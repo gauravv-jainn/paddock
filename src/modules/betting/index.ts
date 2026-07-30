@@ -12,3 +12,4 @@ export {
   type BetSettlementUpdate,
   type SettleableBet,
 } from "./service";
+export { getBetForUser, listBetsWithLegsForUser } from "./service";
