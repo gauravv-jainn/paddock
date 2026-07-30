@@ -16,7 +16,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "test:metamorphic": "vitest run --config vitest.metamorphic.config.ts",
-    "typecheck:metamorphic": "tsc --noEmit -p tsconfig.metamorphic.json"
+    "typecheck:metamorphic": "tsc --noEmit -p tsconfig.metamorphic.json",
+    "mutation": "stryker run"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.4",
@@ -28,6 +29,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",

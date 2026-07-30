@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "docs/05 \u00a78 and docs/08 D13. Scoped to src/modules/settlement/ \u2014 the product. Running it repo-wide is slow and dilutes the signal.",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "reporters": [
+    "json",
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/modules/settlement/**/*.ts",
+    "!src/modules/settlement/**/*.test.ts",
+    "!src/modules/settlement/types.ts"
+  ],
+  "thresholds": {
+    "high": 95,
+    "low": 90,
+    "break": 90
+  },
+  "timeoutMS": 60000,
+  "concurrency": 4,
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  }
+}
