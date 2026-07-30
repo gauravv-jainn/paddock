@@ -22,10 +22,19 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       env,
-      // `pnpm test:settlement` targets src/modules/settlement, which does not
-      // exist yet. Without this it exits non-zero and the commit guard reads
-      // that as a red settlement suite.
+      // `pnpm test:settlement` targets src/modules/settlement, which did not
+      // exist when this was added. Without it the run exits non-zero and the
+      // commit guard reads that as a red settlement suite.
       passWithNoTests: true,
+      // Three suites (wallet, catalog ingest, betting) share ONE test database
+      // and each TRUNCATEs in beforeAll. Run in parallel they corrupt each
+      // other's fixtures — the betting suite hit a duplicate house wallet
+      // because another file's truncate-and-reseed interleaved with its own.
+      //
+      // Every one of them passes in isolation, which is precisely how this
+      // class of defect stays hidden until it fails on someone else's machine.
+      // Serialising files costs about a second on the whole suite.
+      fileParallelism: false,
       include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
       exclude: ["**/node_modules/**"],
       coverage: {
