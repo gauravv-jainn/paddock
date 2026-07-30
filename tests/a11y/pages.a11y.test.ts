@@ -132,8 +132,10 @@ const calculation = {
     {
       part: "WIN",
       stakeMinor: "1000",
-      deadHeatTied: 1,
-      deadHeatPositionsAvailable: 1,
+      // A LOSING part that still carries the race's dead-heat count — exactly
+      // the shape settle() emits, and the case the rendering got wrong.
+      deadHeatTied: 2,
+      deadHeatPositionsAvailable: 0,
       effectiveStake: { num: "1000", den: "1" },
       grossWinnings: { num: "0", den: "1" },
       rule4Pence: 10,
@@ -151,21 +153,21 @@ const calculation = {
       deadHeatTied: 2,
       deadHeatPositionsAvailable: 1,
       effectiveStake: { num: "1000", den: "2" },
-      grossWinnings: { num: "800", den: "1" },
+      grossWinnings: { num: "5625", den: "2" },
       rule4Pence: 10,
-      netWinnings: { num: "720", den: "1" },
-      partReturn: { num: "1220", den: "1" },
-      partReturnMinor: "1220",
+      netWinnings: { num: "10125", den: "4" },
+      partReturn: { num: "12125", den: "4" },
+      partReturnMinor: "3031",
       outcome: "won",
     },
   ],
   rounding: {
-    exactNumerator: "1220",
-    exactDenominator: "1",
+    exactNumerator: "12125",
+    exactDenominator: "4",
     mode: "half-up, ties in the user's favour",
-    roundedMinor: "1220",
+    roundedMinor: "3031",
   },
-  returnMinor: "1220",
+  returnMinor: "3031",
 };
 
 const settlement = {
@@ -174,7 +176,7 @@ const settlement = {
   raceId: "race-1",
   resultVersion: 1,
   outcome: "PARTIAL",
-  returnMinor: 1220n,
+  returnMinor: 3031n,
   calculation,
   payloadHash: "a".repeat(64),
   isReversal: false,
@@ -190,7 +192,7 @@ const bet = {
   totalStakeMinor: 2000n,
   status: "partial",
   settledVersion: 1,
-  returnMinor: 1220n,
+  returnMinor: 3031n,
   legId: "leg-1",
   runnerId: "runner-3",
   oddsTaken: 9,
@@ -214,7 +216,7 @@ vi.mock("@/lib/session", () => ({
   requireUser: () => Promise.resolve(user),
 }));
 
-vi.mock("@/lib/demo", () => ({ isDemoData: () => true }));
+vi.mock("@/lib/demo", () => ({ isDemoData: () => Promise.resolve(true) }));
 
 vi.mock("@/modules/catalog", () => ({
   getRacecard: () => Promise.resolve(racecard),
@@ -435,7 +437,7 @@ describe("settlement detail renders the STORED derivation", () => {
     expect(html).toContain("100/30");
     // Every exact rational, as stored.
     expect(html).toContain("1000 / 2");
-    expect(html).toContain("720 / 1");
+    expect(html).toContain("10125 / 4");
     // The single rounding step.
     expect(html).toContain("half-up, ties in the user&#x27;s favour");
     // Reduced place terms explained in plain English, not as a code.
@@ -457,5 +459,48 @@ describe("settlement detail renders the STORED derivation", () => {
     const element = await Page({ params: Promise.resolve({ betId: "bet-1" }) });
     const html = renderToStaticMarkup(element);
     expect(html).toContain("Nothing on this page is recalculated");
+  });
+});
+
+describe("settlement detail defects found by running it, not by reading it", () => {
+  async function html(): Promise<string> {
+    const { default: Page } = await import("@/app/bets/[betId]/page");
+    return renderToStaticMarkup(
+      await Page({ params: Promise.resolve({ betId: "bet-1" }) }),
+    );
+  }
+
+  it("does NOT explain a dead heat on a part that lost outright", async () => {
+    // The fixture's WIN part lost and carries deadHeatTied: 1; the PLACE part
+    // won with a 2-way tie. Rendering the divisor on a losing part read as
+    // "the dead heat cost you the win part" when finishing out of the places
+    // is what lost it.
+    const markup = await html();
+    const winSection = markup.slice(
+      markup.indexOf("Win part"),
+      markup.indexOf("Place part"),
+    );
+    expect(winSection).not.toContain("horses tied");
+    // And it IS shown where it belongs, so this is not passing by rendering
+    // nothing at all.
+    expect(markup.slice(markup.indexOf("Place part"))).toContain("horses tied");
+  });
+
+  it("shows part approximations that ADD UP to the stated total", async () => {
+    // 28.125 truncated to £28.12 made the parts visibly fail to sum to the
+    // total, on the one screen whose entire job is to justify that total.
+    const markup = await html();
+    expect(markup).toContain("£28.13");
+    expect(markup).not.toContain("£28.12");
+  });
+
+  it("describes rounding as PER PART, matching what settle() does", async () => {
+    // docs/05 §3.3: an each-way bet is two bets, each rounded in its own
+    // right. The page previously claimed one rounding for the whole bet,
+    // contradicting the engine's own rulesApplied entry directly above it.
+    const markup = await html();
+    expect(markup).toContain("Rounding happens once per part");
+    expect(markup).toContain("two separate bets");
+    expect(markup).not.toContain("rounding happens exactly once");
   });
 });

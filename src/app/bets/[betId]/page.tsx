@@ -93,12 +93,18 @@ function rationalToText(r: StoredRational): string {
   return `${r.num} / ${r.den}`;
 }
 
-/** An exact rational as pounds, for the reader. Never used to compute. */
+/**
+ * An exact rational as pounds, for the reader. Never used to compute.
+ *
+ * Rounded half-up, not truncated. Truncating showed £28.12 for an exact
+ * 28.125, so the parts on screen visibly failed to add up to the total — which
+ * on the one screen whose job is to justify the total is worse than useless.
+ */
 function rationalAsApproxPounds(r: StoredRational): string {
   const num = BigInt(r.num);
   const den = BigInt(r.den);
   if (den === 0n) return "—";
-  const pence = num / den;
+  const pence = (2n * num + den) / (2n * den);
   return formatPence(pence);
 }
 
@@ -299,14 +305,27 @@ function Derivation({ settlement }: { settlement: Settlement }) {
       ))}
 
       <div className="panel">
-        <h3>Rounding — once, at the end</h3>
+        <h3>Rounding</h3>
         <p>
-          The whole calculation is carried as an exact fraction so that rounding
-          happens exactly once. Rounding at any intermediate step compounds the
-          error across each-way parts and dead-heat shares.
+          Everything above is carried as an exact fraction — never as a decimal —
+          so that no error accumulates through the place fraction or a dead-heat
+          share. Rounding happens once per part, at the end of that part&rsquo;s
+          own calculation.
+          {calc.parts.length > 1 ? (
+            <>
+              {" "}
+              An each-way bet is <strong>two separate bets</strong>, so each is
+              rounded as a bet in its own right and the two are then added
+              together — which is how a bookmaker settles it.
+            </>
+          ) : null}
         </p>
         <dl className="derivation">
-          <dt>Exact total before rounding</dt>
+          <dt>
+            {calc.parts.length > 1
+              ? "Sum of the parts, as an exact fraction"
+              : "Exact amount before rounding"}
+          </dt>
           <dd className="exact">
             {calc.rounding.exactNumerator} / {calc.rounding.exactDenominator}
           </dd>
@@ -403,7 +422,11 @@ function Rule4Panel({ rule4 }: { rule4: StoredCalculation["rule4"] }) {
 
 function PartPanel({ part }: { part: StoredPart }) {
   const isPlace = part.part === "PLACE";
-  const deadHeat = part.deadHeatTied > 1;
+  // Only explain the dead heat on a part that actually PAID. On a losing part
+  // the divisor is arithmetically present but meaningless, and rendering it
+  // read as "the dead heat cost you the win part" when what lost the win part
+  // was finishing fourth.
+  const deadHeat = part.deadHeatTied > 1 && part.outcome !== "lost";
 
   return (
     <div className="panel">

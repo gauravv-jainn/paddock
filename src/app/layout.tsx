@@ -19,7 +19,7 @@ export const metadata = {
  * navigation on every page (WCAG 2.2 SC 2.4.1).
  */
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const user = await getCurrentUser();
+  const [user, demo] = await Promise.all([getCurrentUser(), isDemoData()]);
 
   return (
     <html lang="en-GB">
@@ -28,7 +28,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           Skip to main content
         </a>
 
-        {isDemoData() ? (
+        {demo ? (
           <p className="demo-banner" role="status">
             DEMO DATA — invented horses, invented results. No real money and no
             real racing.
