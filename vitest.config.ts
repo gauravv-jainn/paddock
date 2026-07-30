@@ -27,10 +27,7 @@ export default defineConfig(({ mode }) => {
       // that as a red settlement suite.
       passWithNoTests: true,
       include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-      // tests/metamorphic imports @/modules/settlement, which does not exist
-      // yet. Excluded so the default gate stays honest; run it deliberately
-      // with `pnpm test:metamorphic`. See tests/metamorphic/README.md.
-      exclude: ["**/node_modules/**", "tests/metamorphic/**"],
+      exclude: ["**/node_modules/**"],
       coverage: {
         provider: "v8",
         reporter: ["text", "html"],

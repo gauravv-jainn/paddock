@@ -41,7 +41,6 @@
   ],
   "exclude": [
     ".next",
-    "node_modules",
-    "tests/metamorphic"
+    "node_modules"
   ]
 }

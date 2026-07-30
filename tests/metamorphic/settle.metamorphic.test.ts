@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   lookupRule4Band,
   settle,
+  type Rational,
   type SettlementBet,
   type SettlementRace,
   type SettlementRunner,
@@ -84,26 +85,96 @@ function runner(s: Scenario, over: Partial<SettlementRunner> = {}): SettlementRu
 
 /** Settled return, or a hard failure — a review is never expected here. */
 function ret(b: SettlementBet, r: SettlementRace, ru: SettlementRunner): bigint {
+  return settled(b, r, ru).returnMinor;
+}
+
+/** Settled outcome, or a hard failure — a review is never expected here. */
+function settled(b: SettlementBet, r: SettlementRace, ru: SettlementRunner) {
   const o = settle(b, r, ru);
   if (o.kind !== "SETTLED") {
     throw new Error(`unexpected review: ${o.reason} — ${o.detail}`);
   }
-  return o.returnMinor;
+  return o;
 }
 
+/** Exact rational equality by cross multiplication. No division, no float. */
+function rationalsEqual(a: Rational, b: Rational): boolean {
+  return a.num * b.den === b.num * a.den;
+}
+
+/** a x k, as an exact rational. */
+function scaleRational(a: Rational, k: bigint): Rational {
+  return { num: a.num * k, den: a.den };
+}
+
+/** The half-up rounding the engine is required to perform (docs/08 D23). */
+function expectedHalfUp(r: Rational): bigint {
+  const q = r.num / r.den;
+  const rem = r.num % r.den;
+  return rem * 2n >= r.den ? q + 1n : q;
+}
+
+/** Sum of every part's exact pre-rounding return. */
+function exactTotal(o: ReturnType<typeof settled>): Rational {
+  return {
+    num: BigInt(o.calculation.rounding.exactNumerator),
+    den: BigInt(o.calculation.rounding.exactDenominator),
+  };
+}
+
+
 describe("1. scaling the stake by k scales the return by exactly k", () => {
-  it("holds for any k", () => {
+  /**
+   * docs/08 D23 — split into two exact properties rather than given a
+   * tolerance. The rounding error scales with k, so a fixed +/-1 penny band
+   * would either still fail at large k or be loose enough to hide the bug it
+   * exists to catch.
+   */
+  it("1a. the PRE-ROUNDING exact value scales exactly, with no tolerance", () => {
     fc.assert(
       fc.property(scenarioArb, fc.bigInt({ min: 2n, max: 1000n }), (s, k) => {
-        const single = ret(bet(s), race(s), runner(s));
-        const scaled = ret(
-          bet(s, { unitStakeMinor: s.stake * k, totalStakeMinor: s.stake * k }),
-          race(s),
-          runner(s),
+        const single = exactTotal(settled(bet(s), race(s), runner(s)));
+        const scaled = exactTotal(
+          settled(
+            bet(s, { unitStakeMinor: s.stake * k, totalStakeMinor: s.stake * k }),
+            race(s),
+            runner(s),
+          ),
         );
-        // Exact, not approximate. A per-step rounding breaks this by a penny,
-        // and a penny per bet is a real defect in a ledger.
-        expect(scaled).toBe(single * k);
+        // Cross-multiplied rational equality. Exact — this is where an
+        // arithmetic error shows up, undisguised by rounding.
+        expect(
+          rationalsEqual(scaled, scaleRational(single, k)),
+          `${scaled.num}/${scaled.den} !== ${k} x ${single.num}/${single.den}`,
+        ).toBe(true);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it("1b. every part's rounded figure is the half-up rounding of its exact value", () => {
+    fc.assert(
+      fc.property(scenarioArb, (s) => {
+        for (const type of ["WIN", "PLACE", "EACH_WAY"] as const) {
+          const unit = s.stake;
+          const o = settled(
+            bet(s, {
+              type,
+              unitStakeMinor: unit,
+              totalStakeMinor: type === "EACH_WAY" ? unit * 2n : unit,
+            }),
+            race(s),
+            runner(s),
+          );
+          let summed = 0n;
+          for (const part of o.calculation.parts) {
+            const expected = expectedHalfUp(part.partReturn);
+            expect(BigInt(part.partReturnMinor)).toBe(expected);
+            summed += expected;
+          }
+          // docs/05 §3.3: the bet's return is the sum of its parts' returns.
+          expect(o.returnMinor).toBe(summed);
+        }
       }),
       { numRuns: 500 },
     );
@@ -128,24 +199,42 @@ describe("2. a winner always also places when at least one place is paid", () =>
 });
 
 describe("3. an n-way dead heat returns exactly 1/n of the clean return", () => {
-  it("divides the stake and leaves the odds alone", () => {
+  it("3a. exact, pre-rounding: tied x n equals clean", () => {
     fc.assert(
       fc.property(scenarioArb, fc.integer({ min: 2, max: 4 }), (base, n) => {
         const s = { ...base, position: 1, rule4Pence: 0 };
-        // Stake divisible by n so the relationship is exact and the property
-        // is not secretly testing the rounding rule.
-        const stake = s.stake * BigInt(n);
-        const b = bet(s, { unitStakeMinor: stake, totalStakeMinor: stake });
-        const clean = ret(b, race(s), runner(s));
-        const tied = ret(b, race(s), runner(s, { deadHeatCount: n }));
-        expect(tied * BigInt(n)).toBe(clean);
+        const b = bet(s);
+        const clean = exactTotal(settled(b, race(s), runner(s)));
+        const tied = exactTotal(
+          settled(b, race(s), runner(s, { deadHeatCount: n })),
+        );
+        // No need to make the stake divisible by n any more: the exact value
+        // carries the division as a denominator instead of losing it.
+        expect(
+          rationalsEqual(scaleRational(tied, BigInt(n)), clean),
+          `${n} x ${tied.num}/${tied.den} !== ${clean.num}/${clean.den}`,
+        ).toBe(true);
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it("3b. the divisor touches the stake, never the odds", () => {
+    fc.assert(
+      fc.property(scenarioArb, fc.integer({ min: 2, max: 4 }), (base, n) => {
+        const s = { ...base, position: 1, rule4Pence: 0 };
+        const o = settled(bet(s), race(s), runner(s, { deadHeatCount: n }));
+        const win = o.calculation.parts.find((p) => p.part === "WIN");
+        expect(win?.deadHeatTied).toBe(n);
+        // effectiveStake = stake x share / n. The odds appear only in winnings.
+        expect(win?.effectiveStake.den).toBe(BigInt(n));
       }),
       { numRuns: 500 },
     );
   });
 });
 
-describe("4. a Rule 4 deduction strictly reduces the return, never below stake", () => {
+describe("4. a Rule 4 deduction never increases the return, never below stake", () => {
   it("keeps the stake whole", () => {
     fc.assert(
       fc.property(
@@ -158,7 +247,9 @@ describe("4. a Rule 4 deduction strictly reduces the return, never below stake",
             race(won, { announcedRule4Pence: 0 }),
             runner(won),
           );
-          expect(withR4).toBeLessThan(without);
+          // docs/08 D23: "never increases", not "strictly reduces". At a 1p
+          // stake both figures round equal, and that is correct behaviour.
+          expect(withR4).toBeLessThanOrEqual(without);
           // docs/05 §5.2 rule 1: the deduction hits winnings only.
           expect(withR4).toBeGreaterThanOrEqual(s.stake);
         },
@@ -235,16 +326,18 @@ describe("7. a void bet returns exactly the total stake", () => {
   });
 });
 
-describe("8. higher odds strictly increase a winner's return", () => {
-  it("holds for any pair of prices", () => {
+describe("8. higher odds never decrease a winner's return", () => {
+  it("holds for any pair of prices distinguishable at ODDS_SCALE", () => {
     fc.assert(
       fc.property(scenarioArb, oddsArb, oddsArb, (base, lo, hi) => {
-        fc.pre(lo < hi);
+        // docs/08 D23: below ODDS_SCALE's 1e-6 resolution the two prices ARE
+        // the same price, and asserting otherwise tests the scale constant.
+        fc.pre(hi - lo > 1e-6);
         // Big enough stake that the difference survives rounding to the penny.
         const s = { ...base, position: 1, stake: 100_000n };
         const low = ret(bet(s, { oddsTaken: lo }), race(s), runner(s));
         const high = ret(bet(s, { oddsTaken: hi }), race(s), runner(s));
-        expect(high).toBeGreaterThan(low);
+        expect(high).toBeGreaterThanOrEqual(low);
       }),
       { numRuns: 500 },
     );

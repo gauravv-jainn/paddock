@@ -1,19 +1,20 @@
 # Metamorphic properties — layer 2 of `docs/08` D20
 
-**These do not compile, and that is the point.** They import `settle()` from
-`@/modules/settlement`, which does not exist. They are written now so that the
-properties are fixed *before* the implementation, and cannot be quietly bent to
-fit whatever it turns out to do.
+**Status: green, and part of the default gate.** These were written before
+`settle()` existed and failed to compile until S9 landed — deliberately, so the
+properties were fixed before the implementation and could not be quietly bent
+to fit it. They now run in `pnpm test` and `pnpm test:settlement`.
 
-```bash
-pnpm typecheck:metamorphic   # fails: Cannot find module '@/modules/settlement'
-pnpm test:metamorphic        # fails the same way
-```
+They did their job. Property 6 forced a real change: `settle()` rounded the
+each-way SUM, and `docs/05` §3.3 says the total is the sum of the parts'
+returns, so each part now rounds its own computation. Property 5 forced
+another: the band lookup threw for a price between two published bands, and
+`docs/08` D22 turned that into a refusal.
 
-They are excluded from `pnpm typecheck` and `pnpm test` so the repo's own gate
-stays honest — a permanently-red gate is a gate nobody reads. The two commands
-above are the S9 tripwire: when `settle()` lands, they go green or the
-properties were wrong.
+Properties 1 and 3 are each SPLIT in two (`docs/08` D23) — one asserting exact
+linearity on the pre-rounding rational, one asserting the rounding itself.
+Tolerance widening was rejected: the error scales with k, so a fixed band
+either still fails or hides the bug it exists to catch.
 
 ## What a metamorphic property is, and why it is here
 

@@ -440,6 +440,43 @@ the six vacuous tests and the inert commit gate on that list.
 
 ---
 
+## D23 — Split the rounding-sensitive properties. Do not widen tolerance.
+
+Metamorphic properties 1, 3, 4 and 8 failed against a correct settle(). They
+were property defects, not engine defects: each asserted an exactness that no
+penny-rounding ledger can provide.
+
+**Tolerance widening was proposed and REJECTED.** The error on properties 1 and
+3 scales with k — double the stake and you double the opportunity for the
+rounded result to drift from k x the single result. A fixed +/-1 penny band is
+therefore either wrong (too tight at large k, so it still fails) or useless
+(loose enough to pass, and loose enough to hide a real rounding bug). A
+property that can absorb the bug it exists to catch is worse than no property.
+
+**Resolution — split each into two properties, both exact:**
+
+- Properties 1 and 3 assert linearity on the PRE-ROUNDING exact value, which
+  settle() already exposes as an integer numerator/denominator pair on every
+  part (`calculation.parts[].partReturn`) and on the total
+  (`calculation.rounding.exactNumerator` / `exactDenominator`). Rationals
+  compare by cross multiplication, so this is exact with no tolerance at all.
+- A separate property asserts that the rounded figure is the correct half-up
+  rounding of that exact value. Also exact.
+
+Together they are STRICTLY STRONGER than the originals: the first catches an
+arithmetic error, the second catches a rounding error, and neither can mask
+the other. The original single property conflated them and could be satisfied
+by an implementation that got both slightly wrong in opposite directions.
+
+- Property 4: "strictly reduces" -> "never increases", plus never below stake.
+  At a 1p stake both figures round equal, and that is correct behaviour.
+- Property 8: "strictly increases" -> "never decreases", plus a guard that the
+  two prices differ by more than ODDS_SCALE's 1e-6 resolution. Below that
+  resolution the two prices are the same price, and asserting otherwise tests
+  the scale constant rather than the engine.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |
