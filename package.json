@@ -21,7 +21,9 @@
     "mutation:a": "stryker run stryker.gate-a.json",
     "mutation:b": "stryker run stryker.gate-b.json",
     "verify": "./scripts/verify.sh",
-    "verify:fast": "./scripts/verify.sh --fast"
+    "verify:fast": "./scripts/verify.sh --fast",
+    "demo": "./scripts/demo.sh",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.4",
