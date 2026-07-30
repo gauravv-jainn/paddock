@@ -582,4 +582,48 @@ describe.skipIf(!url)("settleRace against PostgreSQL", () => {
     expect(entries.every((e) => e.ref_id === placed.id)).toBe(true);
     expect(entries.some((e) => (e.memo ?? "").includes("result_version"))).toBe(true);
   });
+  it("stamps settled_at from the caller's clock when one is supplied", async () => {
+    // settle() is pure and takes no clock; the WORKER owns the time. Passing it
+    // in is what lets a replay reproduce the original timestamps instead of
+    // stamping the moment of the replay.
+    const { raceId, runnerIds } = await makeRace({ finish: { 1: 1 } });
+    const placed = await bet(raceId, runnerIds[1]!);
+    const now = new Date("2024-03-05T15:30:00.000Z");
+
+    await settleRace(raceId, PAYLOAD_HASH, { now });
+
+    const rows = await db.execute<{ settled_at: Date | string }>(
+      sql`select settled_at from bets where id = ${placed.id}::uuid`,
+    );
+    const settledAt = rows[0]!.settled_at;
+    expect(new Date(settledAt).toISOString()).toBe(now.toISOString());
+  });
+
+  it("re-settles cleanly when the earlier settlement row is missing", async () => {
+    // bets.settled_version says the bet was settled, but no settlement row
+    // exists — the shape a partial restore or a manual repair leaves behind.
+    // There is nothing to reverse, so it must settle forward rather than throw
+    // and block every other bet on the race.
+    const { raceId, runnerIds } = await makeRace({ finish: { 1: 1 } });
+    const placed = await bet(raceId, runnerIds[1]!);
+    const afterStake = await balance();
+
+    await db.execute(
+      sql`update bets set settled_version = 0, status = 'lost' where id = ${placed.id}::uuid`,
+    );
+    await db.execute(
+      sql`update races set result_version = 1 where id = ${raceId}::uuid`,
+    );
+
+    const result = await settleRace(raceId, PAYLOAD_HASH);
+    if (result.kind !== "DONE") throw new Error(result.detail);
+
+    expect(result.report.resettled).toBe(1);
+    // Paid once, and no reversal entry for a settlement that never happened.
+    expect(await balance()).toBe(afterStake + 5000n);
+    const reversals = await db.execute<{ n: string }>(
+      sql`select count(*)::text as n from ledger_entries where entry_type = 'REVERSAL'`,
+    );
+    expect(Number(reversals[0]!.n)).toBe(0);
+  });
 });
