@@ -325,3 +325,107 @@ export async function listBetsForUser(
     .where(eq(bets.userId, userId))
     .orderBy(sql`${bets.placedAt} DESC`);
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Settlement-facing interface.
+ *
+ * The settlement module owns `settlements`; this module owns `bets` and
+ * `bet_legs`. These four functions are the whole sanctioned surface between
+ * them (`.claude/rules/modules.md`) — settlement never queries a bet table.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** One bet standing on a race, with the leg that names its runner. */
+export interface SettleableBet {
+  betId: string;
+  userId: string;
+  walletId: string;
+  betType: BetType;
+  unitStakeMinor: bigint;
+  totalStakeMinor: bigint;
+  status: string;
+  settledVersion: number | null;
+  returnMinor: bigint;
+  legId: string;
+  runnerId: string;
+  /** Frozen at placement. The bet settles at this price, not the current one. */
+  oddsTaken: number;
+}
+
+/**
+ * Every bet on a race that settlement should consider.
+ *
+ * Includes already-settled bets, not just open ones, because a stewards'
+ * amendment has to reach the bets the previous result paid out. The worker
+ * decides what to do with each from `settledVersion`; filtering to open bets
+ * here would make re-settlement structurally impossible.
+ */
+export async function listBetsForRace(
+  raceId: string,
+  tx?: Executor,
+): Promise<SettleableBet[]> {
+  const rows = await (tx ?? getDb())
+    .select({
+      betId: bets.id,
+      userId: bets.userId,
+      walletId: bets.walletId,
+      betType: bets.betType,
+      unitStakeMinor: bets.unitStakeMinor,
+      totalStakeMinor: bets.totalStakeMinor,
+      status: bets.status,
+      settledVersion: bets.settledVersion,
+      returnMinor: bets.returnMinor,
+      legId: betLegs.id,
+      runnerId: betLegs.runnerId,
+      oddsTaken: betLegs.oddsTaken,
+    })
+    .from(bets)
+    .innerJoin(betLegs, eq(betLegs.betId, bets.id))
+    .where(eq(betLegs.raceId, raceId))
+    .orderBy(bets.placedAt);
+
+  return rows.map((r) => ({
+    ...r,
+    betType: r.betType as BetType,
+    // NUMERIC(10,3) arrives as a string. Odds are a multiplier, never money.
+    oddsTaken: Number(r.oddsTaken),
+  }));
+}
+
+export interface BetSettlementUpdate {
+  betId: string;
+  legId: string;
+  /** 'won' | 'lost' | 'void' | 'partial' | 'needs_review' */
+  status: string;
+  legOutcome: "won" | "placed" | "lost" | "void" | "pending";
+  returnMinor: bigint;
+  resultVersion: number;
+  settledAt: Date;
+}
+
+/**
+ * Records the result of settling one bet.
+ *
+ * `bets.return_minor` and `bets.status` are a derived cache of the settlement
+ * row, kept because every bet-history screen would otherwise join settlements.
+ * The ledger and `settlements` remain authoritative; this is the only place
+ * that writes them, and a re-settlement overwrites rather than accumulates.
+ */
+export async function recordBetSettlement(
+  update: BetSettlementUpdate,
+  tx: Transaction,
+): Promise<void> {
+  await tx
+    .update(bets)
+    .set({
+      status: update.status,
+      returnMinor: update.returnMinor,
+      settledVersion: update.resultVersion,
+      settledAt: update.settledAt,
+    })
+    .where(eq(bets.id, update.betId));
+
+  await tx
+    .update(betLegs)
+    .set({ outcome: update.legOutcome })
+    .where(eq(betLegs.id, update.legId));
+}

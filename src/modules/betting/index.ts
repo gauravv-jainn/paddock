@@ -6,3 +6,9 @@ export type {
   PlaceBetRefusal,
 } from "./service";
 export { BET_STATUSES, BET_TYPES, type Bet, type BetLeg } from "./schema";
+export {
+  listBetsForRace,
+  recordBetSettlement,
+  type BetSettlementUpdate,
+  type SettleableBet,
+} from "./service";

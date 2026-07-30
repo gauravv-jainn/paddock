@@ -39,3 +39,13 @@ export {
   type PlaceTerms,
   type PlaceTermsRow,
 } from "./rules/placeTerms";
+
+export {
+  settleRace,
+  type BetSettlementReport,
+  type SettleRaceOutcome,
+  type SettleRaceRefusal,
+  type SettleRaceReport,
+  type SettleRaceStatus,
+} from "./settleRace";
+export { settlements, SETTLEMENT_OUTCOMES, type Settlement } from "./schema";

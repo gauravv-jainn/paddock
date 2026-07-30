@@ -21,3 +21,8 @@ export {
   type Runner,
   type Track,
 } from "./schema";
+export {
+  getRaceForSettlement,
+  type SettlementRaceRow,
+  type SettlementRunnerRow,
+} from "./settlementInputs";

@@ -6,6 +6,7 @@ import type {
   Calculation,
   PartCalculation,
   Rational,
+  ReviewReason,
   Rule4Calculation,
   SettlementBet,
   SettlementOutcome,
@@ -85,7 +86,9 @@ function assertProgrammerInputs(bet: SettlementBet): void {
  */
 function resolveRule4(
   race: SettlementRace,
-): { ok: true; calc: Rule4Calculation } | { ok: false; detail: string } {
+):
+  | { ok: true; calc: Rule4Calculation }
+  | { ok: false; reason: ReviewReason; detail: string } {
   const withdrawn = race.withdrawals.filter((w) => w.runnerStatus === "withdrawn");
 
   if (race.announcedRule4Pence !== null) {
@@ -124,9 +127,11 @@ function resolveRule4(
   let total = 0;
   for (const w of withdrawn) {
     if (w.fraction === null) {
-      // D14/D17: refuse. A null fraction does NOT mean "no deduction".
+      // D17: a withdrawn runner with neither a price nor an announced
+      // deduction. A null fraction does NOT mean "no deduction".
       return {
         ok: false,
+        reason: "AMBIGUOUS_WITHDRAWAL",
         detail:
           "a withdrawn runner carries no fractional price — its deduction " +
           "cannot be looked up, and assuming zero would pay out in full on a " +
@@ -135,7 +140,9 @@ function resolveRule4(
     }
     const found = lookupRule4Band(w.fraction);
     if (!found.ok) {
-      return { ok: false, detail: found.reason };
+      // D14: the price is a real fraction but sits between two published
+      // bands, so no row of the table covers it.
+      return { ok: false, reason: "RULE4_PRICE_NOT_ON_LADDER", detail: found.reason };
     }
     const band = found.band;
     total += band.deduction;
@@ -330,7 +337,12 @@ export function settle(
     );
     return {
       kind: "NEEDS_REVIEW",
-      reason: "RULE4_PRICE_NOT_ON_LADDER",
+      // The two causes are NOT the same question for whoever reviews this. D17
+      // is "the feed did not say what the deduction was"; D14 is "the feed gave
+      // a price the published table does not cover". Collapsing them into one
+      // code, as this did, made AMBIGUOUS_WITHDRAWAL unreachable and left the
+      // review queue matching prose to tell them apart.
+      reason: rule4Resolved.reason,
       detail: rule4Resolved.detail,
       calculation: calc,
     };

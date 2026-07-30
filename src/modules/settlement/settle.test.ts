@@ -422,7 +422,10 @@ describe("refusals are return values — docs/08 D14, D17, D22", () => {
         withdrawals: [{ fraction: null, runnerStatus: "withdrawn" }],
       }),
     );
-    expect(o.reason).toBe("RULE4_PRICE_NOT_ON_LADDER");
+    // docs/08 D17, not D14: the feed did not say what the deduction was. A
+    // price that is real but between two bands is the other reason, asserted
+    // in the next test — the two are different questions for a reviewer.
+    expect(o.reason).toBe("AMBIGUOUS_WITHDRAWAL");
     expect(o.detail).toMatch(/no fractional price/);
   });
 
