@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "docs/08 D24 GATE A \u2014 arithmetic and branch mutants only. These decide payouts. 100%, no waivers.",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "reporters": [
+    "json",
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/modules/settlement/**/*.ts",
+    "!src/modules/settlement/**/*.test.ts",
+    "!src/modules/settlement/types.ts"
+  ],
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "timeoutMS": 60000,
+  "concurrency": 4,
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation-a/mutation.json"
+  },
+  "mutator": {
+    "excludedMutations": [
+      "StringLiteral",
+      "Regex"
+    ]
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation-a/mutation.html"
+  }
+}

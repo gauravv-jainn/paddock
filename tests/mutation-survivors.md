@@ -1,7 +1,32 @@
 # Mutation survivors — `src/modules/settlement/`
 
-Run: `pnpm mutation` · Stryker 9.6.1 · scoped per `stryker.config.json`
-Last measured: 2026-07-30
+**Two gates, per `docs/08` D24.** One number hid two different problems: 77 of
+141 survivors were prose, 46 were payout-deciding branch conditions.
+
+| Gate | Scope | Bar | Command |
+|---|---|---|---|
+| **A** | arithmetic + branch mutants | **100%, no waivers** | `pnpm mutation:a` |
+| **B** | StringLiteral + Regex | no score — snapshots | `pnpm mutation:b` |
+
+Stryker 9.6.1 · scoped to `src/modules/settlement/` · last measured 2026-07-30
+
+## Gate A — payout-deciding mutants
+
+| File | Score | Survived |
+|---|---|---|
+| `rules/fraction.ts` | **100.00%** | 0 |
+| `rules/placeTerms.ts` | 97.06% | 2 |
+| `rules/rule4.ts` | 95.71% | 3 |
+| `settle.ts` | 83.19% | 59 |
+| **All** | **87.38%** | **64** |
+
+Separating the gates immediately sharpened the picture the combined number
+blurred: the rule tables are at 96-100% and `settle.ts` carries 59 of the 64
+survivors. Under the combined score that read as a uniform 78.61%.
+
+---
+
+## Combined score (no longer a gate — kept for continuity)
 
 ## Score
 

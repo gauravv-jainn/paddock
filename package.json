@@ -17,7 +17,11 @@
     "db:migrate": "drizzle-kit migrate",
     "test:metamorphic": "vitest run --config vitest.metamorphic.config.ts",
     "typecheck:metamorphic": "tsc --noEmit -p tsconfig.metamorphic.json",
-    "mutation": "stryker run"
+    "mutation": "pnpm mutation:a && pnpm mutation:b",
+    "mutation:a": "stryker run stryker.gate-a.json",
+    "mutation:b": "stryker run stryker.gate-b.json",
+    "verify": "./scripts/verify.sh",
+    "verify:fast": "./scripts/verify.sh --fast"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.4",

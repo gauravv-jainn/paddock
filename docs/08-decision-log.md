@@ -477,6 +477,41 @@ by an implementation that got both slightly wrong in opposite directions.
 
 ---
 
+## D24 — Split the mutation gate. One score hid two different problems.
+
+`docs/05` §8 set a single >=90% mutation score over `src/modules/settlement/`.
+Measuring it exposed the flaw: at 78.61%, 77 of the 141 survivors were prose in
+`rulesApplied` and refusal reasons, and 46 were branch conditions at band
+boundaries. Those are not the same kind of defect and a single number cannot
+tell you which you have.
+
+That is the same conflation D23 fixed in properties 1 and 3: an arithmetic
+error and a rounding error averaged into one figure, where each masks the
+other. A combined score of 90% is compatible with every payout-deciding mutant
+surviving, provided enough error messages are asserted.
+
+**GATE A — arithmetic and branch mutants. 100%, no waivers.**
+Everything except string and regex mutants: ConditionalExpression,
+EqualityOperator, ArithmeticOperator, LogicalOperator, BooleanLiteral,
+ArrayDeclaration, ObjectLiteral, UpdateOperator and the rest. These decide
+payouts. The 46 surviving band-boundary condition mutants are the exact class
+that produced the ten-row Rule 4 error in `docs/05` §5.1 — a table that was
+wrong at every band from Evens upward while remaining monotonic, internally
+consistent, and passing every test that existed.
+
+**GATE B — message and prose mutants. No score. Snapshot assertions.**
+StringLiteral and Regex over the calculation object. A mutation score is the
+wrong instrument here: killing "90% of error messages" means nothing, and the
+real risk is a *content* defect — an emptied refusal reason ships a blank
+explanation to a user asking why they were not paid. Snapshots of the
+calculation object catch that, and catch it better, because they assert what
+the user actually reads rather than that some assertion touched the string.
+
+**The combined score is no longer a gate.** It is reported for continuity with
+the 49.85% and 78.61% measurements, and for nothing else.
+
+---
+
 ## Still open — not decidable by an agent
 
 | # | Item | Blocks |

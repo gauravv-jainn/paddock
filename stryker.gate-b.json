@@ -1,0 +1,55 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "docs/08 D24 GATE B \u2014 message and prose mutants. NOT gated on a score; constrained by snapshot assertions on the calculation object. break is null on purpose.",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "reporters": [
+    "json",
+    "html",
+    "clear-text",
+    "progress"
+  ],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/modules/settlement/**/*.ts",
+    "!src/modules/settlement/**/*.test.ts",
+    "!src/modules/settlement/types.ts"
+  ],
+  "thresholds": {
+    "high": 100,
+    "low": 0,
+    "break": null
+  },
+  "timeoutMS": 60000,
+  "concurrency": 4,
+  "plugins": [
+    "@stryker-mutator/vitest-runner"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation-b/mutation.json"
+  },
+  "mutator": {
+    "excludedMutations": [
+      "ArithmeticOperator",
+      "ArrayDeclaration",
+      "ArrowFunction",
+      "AssignmentOperator",
+      "BlockStatement",
+      "BooleanLiteral",
+      "ConditionalExpression",
+      "EqualityOperator",
+      "LogicalOperator",
+      "MethodExpression",
+      "ObjectLiteral",
+      "OptionalChaining",
+      "UnaryOperator",
+      "UpdateOperator"
+    ]
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation-b/mutation.html"
+  }
+}
