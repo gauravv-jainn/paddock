@@ -211,3 +211,97 @@ describe("prices the published scale does not describe — docs/08 D22", () => {
     expect(() => lookupRule4Band(f(1, 0))).toThrow(RangeError);
   });
 });
+
+
+describe("the exclusive floor on the final band — docs/05 §5.1 row 19", () => {
+  /**
+   * Row 19 is "over 14/1", and its floor is EXCLUSIVE because 14/1 itself
+   * belongs to row 18 ("10/1 - 14/1", 5p). Every other row's floor is
+   * inclusive. Two mutants live here: dropping `fromExclusive` entirely, and
+   * turning the `>` into `>=`. Either one hands 14/1 to the 0p band and
+   * silently stops deducting on a race that owed 5p in the pound.
+   */
+  it("gives 14/1 EXACTLY to the 5p band, not to the 0p band above it", () => {
+    const found = lookupRule4Band({ num: 14, den: 1 });
+    expect(found.ok).toBe(true);
+    if (found.ok) {
+      expect(found.band.deduction).toBe(5);
+      expect(found.band.published).toBe("10/1 - 14/1");
+      // And it is not the exclusive-floor row that happens to also match.
+      expect(found.band.fromExclusive).toBeUndefined();
+    }
+  });
+
+  it("gives anything longer than 14/1 to the 0p band", () => {
+    for (const price of [
+      { num: 15, den: 1 },
+      { num: 100, den: 1 },
+      { num: 29, den: 2 },
+    ]) {
+      const found = lookupRule4Band(price);
+      expect(found.ok).toBe(true);
+      if (found.ok) {
+        expect(found.band.deduction).toBe(0);
+        expect(found.band.fromExclusive).toBe(true);
+      }
+    }
+  });
+
+  it("keeps every OTHER band's floor inclusive", () => {
+    // The counterpart assertion: if `fromExclusive` were treated as true
+    // everywhere, each band's own floor price would fall through to the next
+    // row down and every deduction in the table would be wrong by one rung —
+    // which is the exact shape of the ten-row error docs/08 records.
+    const found = lookupRule4Band({ num: 10, den: 1 });
+    expect(found.ok).toBe(true);
+    if (found.ok) expect(found.band.deduction).toBe(5);
+  });
+});
+
+
+describe("the bands are order-independent, not merely well-typed", () => {
+  /**
+   * Searching the table REVERSED must give the same answer for every price.
+   *
+   * Against the shipped ordering, row 18 ("10/1 - 14/1") is checked before row
+   * 19 ("over 14/1"), so row 19's exclusive floor never decides anything.
+   * Reversed, row 19 is checked first and its `fromExclusive` flag is the only
+   * thing standing between 14/1 and a 0p deduction on a race that owed 5p.
+   *
+   * This matters because the ten-row error in docs/05 §5.1 was an ordering
+   * error. A table whose meaning depends on the sequence someone typed it in
+   * is one transcription away from the same failure.
+   */
+  const reversed: typeof RULE4_TABLE = {
+    ...RULE4_TABLE,
+    rows: [...RULE4_TABLE.rows].reverse(),
+  };
+
+  it("gives 14/1 the 5p band even when the 0p band is checked FIRST", () => {
+    const found = lookupRule4Band({ num: 14, den: 1 }, reversed);
+    expect(found.ok).toBe(true);
+    if (found.ok) expect(found.band.deduction).toBe(5);
+  });
+
+  it("agrees with the shipped ordering on every published bound", () => {
+    const prices: Array<[number, number]> = [];
+    for (const band of RULE4_TABLE.rows) {
+      if (band.from) prices.push([band.from.num, band.from.den]);
+      if (band.to) prices.push([band.to.num, band.to.den]);
+    }
+    prices.push([15, 1], [100, 1], [1, 20]);
+    expect(prices.length).toBeGreaterThan(30);
+
+    for (const [num, den] of prices) {
+      const shipped = lookupRule4Band({ num, den });
+      const other = lookupRule4Band({ num, den }, reversed);
+      expect(other.ok).toBe(shipped.ok);
+      if (shipped.ok && other.ok) {
+        expect(
+          other.band.deduction,
+          `${num}/${den} differs when the table is reversed`,
+        ).toBe(shipped.band.deduction);
+      }
+    }
+  });
+});

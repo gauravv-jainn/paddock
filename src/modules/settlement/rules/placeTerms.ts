@@ -104,6 +104,20 @@ export function lookupPlaceTerms(
   actualRunners: number,
   isHandicap: boolean,
   enhanced?: EnhancedTerms | null,
+  /**
+   * The table to search. Defaults to the shipped one; production never passes
+   * anything else.
+   *
+   * It is a parameter so that the ORDER-INDEPENDENCE of the search can be
+   * tested with a reordered table. The `actualRunners < row.minRunners` guard
+   * below exists precisely so that a row's position in the list cannot change
+   * the answer — and with only the shipped table, whose rows ascend
+   * contiguously, that guard can never fire and nothing distinguishes it from
+   * its own absence. This codebase has already shipped one rule table with a
+   * ten-row ordering error (docs/08); an untested order-independence claim is
+   * not one worth making.
+   */
+  table: RuleTable<PlaceTermsRow> = PLACE_TERMS_TABLE,
 ): PlaceTerms {
   if (enhanced) {
     // Half an override is not a term. The database rejects it too
@@ -132,7 +146,7 @@ export function lookupPlaceTerms(
     );
   }
 
-  for (const row of PLACE_TERMS_TABLE.rows) {
+  for (const row of table.rows) {
     if (row.isHandicap !== null && row.isHandicap !== isHandicap) continue;
     if (actualRunners < row.minRunners) continue;
     if (row.maxRunners !== null && actualRunners > row.maxRunners) continue;

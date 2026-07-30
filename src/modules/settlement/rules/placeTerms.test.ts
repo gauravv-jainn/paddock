@@ -156,3 +156,99 @@ describe("the table itself", () => {
     }
   });
 });
+
+
+describe("the disputed marker appears only where a dispute exists", () => {
+  it("omits `disputed` entirely on an undisputed row", () => {
+    // Only the handicap 12-15 row carries a competing published value. A
+    // `disputed` key present on every row would put a caveat on the settlement
+    // detail screen for terms that nobody disputes, and a caveat that appears
+    // everywhere is one a reader learns to ignore.
+    const terms = lookupPlaceTerms(10, false);
+    expect(terms.places).toBe(3);
+    expect("disputed" in terms).toBe(false);
+    expect(terms.disputed).toBeUndefined();
+  });
+
+  it("carries `disputed` on the handicap 12-15 row", () => {
+    const terms = lookupPlaceTerms(13, true);
+    expect(terms.disputed).toBeDefined();
+    // `competing` is a string here, not an array as it is on a Rule 4 band.
+    expect(terms.disputed?.competing).toMatch(/1\/5/);
+  });
+
+  it.each([
+    [4, false],
+    [5, false],
+    [7, true],
+    [8, true],
+    [16, true],
+    [16, false],
+  ])("omits `disputed` for %i runners, handicap=%s", (runners, handicap) => {
+    expect("disputed" in lookupPlaceTerms(runners, handicap)).toBe(false);
+  });
+});
+
+
+describe("the place-terms rows are order-independent", () => {
+  /**
+   * The `actualRunners < row.minRunners` guard is what makes this true. Against
+   * the shipped ordering — contiguous and ascending — it can never fire, so
+   * only a reordered table can tell it from its own absence.
+   *
+   * Reversed, the open-ended rows ("16+ handicap", "8+ non-handicap") are
+   * checked FIRST, and without the guard a 5-runner handicap would match the
+   * 16+ row and pay four places on a field that pays two.
+   */
+  const reversed: typeof PLACE_TERMS_TABLE = {
+    ...PLACE_TERMS_TABLE,
+    rows: [...PLACE_TERMS_TABLE.rows].reverse(),
+  };
+
+  it("does not pay a small field on an open-ended row checked first", () => {
+    const terms = lookupPlaceTerms(5, true, null, reversed);
+    expect(terms.places).toBe(2);
+    expect(terms.fractionDen).toBe(4);
+  });
+
+  it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16, 17, 24, 40])(
+    "agrees with the shipped ordering for %i runners, both race types",
+    (runners) => {
+      for (const isHandicap of [true, false]) {
+        const shipped = lookupPlaceTerms(runners, isHandicap);
+        const other = lookupPlaceTerms(runners, isHandicap, null, reversed);
+        expect(
+          { places: other.places, fractionDen: other.fractionDen },
+          `${runners} runners, handicap=${isHandicap}`,
+        ).toEqual({ places: shipped.places, fractionDen: shipped.fractionDen });
+      }
+    },
+  );
+});
+
+
+describe("the guards that the shipped table makes unreachable", () => {
+  it("REFUSES when no row covers the field, rather than paying zero places", () => {
+    // Unreachable against the shipped table, which is total — proved by the
+    // "covers every field size" test above. Reachable through the table
+    // parameter, and worth reaching: silently paying no places on a race that
+    // owed three is the same class of bug as a silent zero deduction.
+    const gappy: typeof PLACE_TERMS_TABLE = {
+      ...PLACE_TERMS_TABLE,
+      rows: PLACE_TERMS_TABLE.rows.filter((r) => r.minRunners !== 1),
+    };
+    expect(() => lookupPlaceTerms(3, false, null, gappy)).toThrow(
+      /no place-terms row for 3 runners, isHandicap=false/,
+    );
+  });
+
+  it("names its own error type, so a catch can distinguish it", () => {
+    try {
+      lookupPlaceTerms(16, true, { places: 6, fractionDen: 0 });
+      throw new Error("expected a throw");
+    } catch (error) {
+      expect((error as Error).name).toBe("EnhancedTermsIncompleteError");
+      expect(error).toBeInstanceOf(EnhancedTermsIncompleteError);
+    }
+  });
+});

@@ -202,7 +202,7 @@ async function settleOneBet(
     }
 
     if (outcome.returnMinor > 0n) {
-      await creditReturn(tx, bet, outcome.returnMinor, outcome.status, false);
+      await creditReturn(tx, bet, outcome.returnMinor, outcome.status);
     }
 
     await recordBetSettlement(
@@ -375,12 +375,19 @@ async function writeSettlement(
   return rows[0] ?? null;
 }
 
+/**
+ * Credits a settled bet's return.
+ *
+ * There is deliberately no `isReversal` flag. A reversal posts its own
+ * compensating entries in `reversePriorSettlement`, so this path only ever
+ * credits — a branch here for the negative case was unreachable code
+ * pretending to be a safeguard.
+ */
 async function creditReturn(
   tx: Transaction,
   bet: SettleableBet,
   returnMinor: bigint,
   status: string,
-  isReversal: boolean,
 ): Promise<void> {
   const house = await walletService.getHouseWallet(tx);
   // VOID returns the stake and is not a payout; the entry type says which,
@@ -392,14 +399,14 @@ async function creditReturn(
       lines: [
         {
           walletId: bet.walletId,
-          amountMinor: isReversal ? -returnMinor : returnMinor,
+          amountMinor: returnMinor,
           entryType,
           refType: "bet",
           refId: bet.betId,
         },
         {
           walletId: house.id,
-          amountMinor: isReversal ? returnMinor : -returnMinor,
+          amountMinor: -returnMinor,
           entryType,
           refType: "bet",
           refId: bet.betId,
@@ -420,7 +427,14 @@ function legOutcomeFor(
   return "won";
 }
 
-/* ── Mapping. Database vocabulary in, settle()'s value types out. ─────────── */
+/* ── Mapping. Database vocabulary in, settle()'s value types out. ───────────
+ *
+ * Exported for testing. These two functions are where a database row becomes a
+ * settlement input, so their guards — an unmapped status, a half-present
+ * withdrawal fraction — decide whether a bad row reaches settle() or is
+ * stopped. Reaching them through settleRace() alone would mean the DB's CHECK
+ * constraints make some of them untestable, and an untested guard is a guess.
+ */
 
 function toSettlementBet(bet: SettleableBet): SettlementBet {
   return {
@@ -438,7 +452,7 @@ const RACE_STATUS_MAP: Record<string, SettlementRace["status"]> = {
   postponed: "POSTPONED",
 };
 
-function toSettlementRace(race: SettlementRaceRow): SettlementRace {
+export function toSettlementRace(race: SettlementRaceRow): SettlementRace {
   // Every withdrawn or non-running horse in the race, whether or not anyone
   // backed it — Rule 4 is a property of the race, not of the bet.
   const withdrawals: Withdrawal[] = race.runners
@@ -472,7 +486,7 @@ const RUNNER_STATUS_MAP: Record<string, SettlementRunner["status"]> = {
   reserve: "RESERVE",
 };
 
-function toSettlementRunner(
+export function toSettlementRunner(
   row: SettlementRaceRow["runners"][number],
 ): SettlementRunner {
   const status = RUNNER_STATUS_MAP[row.status];

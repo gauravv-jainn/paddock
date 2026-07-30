@@ -310,13 +310,26 @@ export type Rule4Lookup =
  * deduction. So this refuses, and settle() turns the refusal into
  * NEEDS_REVIEW.
  */
-export function lookupRule4Band(price: Fraction): Rule4Lookup {
+export function lookupRule4Band(
+  price: Fraction,
+  /**
+   * The band table. Defaults to the shipped one; production never overrides it.
+   *
+   * Parameterised for the same reason as `lookupPlaceTerms`: row 19's
+   * `fromExclusive` floor only matters if row 18 is not checked first, so
+   * against the shipped ordering the flag cannot change any answer and no test
+   * can tell it from its absence. Searching a reordered table is what proves
+   * the bands mean what they say rather than merely happening to be typed in
+   * the right sequence.
+   */
+  table: RuleTable<Rule4Band> = RULE4_TABLE,
+): Rule4Lookup {
   if (price.num <= 0 || price.den <= 0) {
     // Programmer error, not a business outcome: a price is positive.
     throw new RangeError(`price must be positive, got ${price.num}/${price.den}`);
   }
 
-  for (const band of RULE4_TABLE.rows) {
+  for (const band of table.rows) {
     const aboveFloor =
       band.from === null ||
       (band.fromExclusive === true

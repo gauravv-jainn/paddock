@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { settle } from "./settle";
+import { roundHalfUp, settle } from "./settle";
 import type {
   SettlementBet,
   SettlementRace,
@@ -494,5 +494,224 @@ describe("step 7 — rounding happens once, half-up, in the user's favour", () =
     const o = settled(bet(), race({ announcedRule4Pence: 20 }));
     const joined = o.calculation.rulesApplied.join(" | ");
     expect(joined).toMatch(/Rule 4.*rounded once/s);
+  });
+});
+
+
+/**
+ * Cases that exist because a mutant survived, each pinning one decision that
+ * nothing else in the suite distinguished (docs/08 D13, D24 Gate A).
+ */
+describe("Rule 4 aggregation boundaries", () => {
+  /** A withdrawal at a price whose band deduction is known. */
+  const wd = (num: number, den: number) => ({
+    fraction: { num, den },
+    runnerStatus: "withdrawn" as const,
+  });
+
+  it("does NOT report a cap when the total lands exactly on 90p", () => {
+    // docs/05 §5.2 rule 2 caps deductions AT 90p. A total of exactly 90 is the
+    // cap's value, not an application of it, and `> 90` vs `>= 90` is the whole
+    // difference. Two 45p bands sum to precisely 90.
+    const o = settled(
+      bet(),
+      race({
+        announcedRule4Pence: null,
+        withdrawals: [wd(11, 10), wd(11, 10)],
+      }),
+    );
+    expect(o.calculation.rule4.totalPence).toBe(90);
+    expect(o.calculation.rule4.cappedAt90).toBe(false);
+  });
+
+  it("reports a cap only once the total EXCEEDS 90p", () => {
+    const o = settled(
+      bet(),
+      race({
+        announcedRule4Pence: null,
+        withdrawals: [wd(11, 10), wd(11, 10), wd(11, 10)],
+      }),
+    );
+    expect(o.calculation.rule4.totalPence).toBe(90);
+    expect(o.calculation.rule4.cappedAt90).toBe(true);
+  });
+
+  it("takes the WEAKEST evidence across bands, not the strongest or unanimous", () => {
+    // 4/1 falls in the computed-confirmed 16/5-4/1 band; 6/1 falls in the
+    // consensus-only 6/1-9/1 band. Mixing them must report consensus-only —
+    // `some`, not `every`. Under `every` one well-evidenced band would launder
+    // a poorly-evidenced one, and docs/08 D21 exists precisely so the user is
+    // told which of the two they are relying on.
+    const o = settled(
+      bet(),
+      race({ announcedRule4Pence: null, withdrawals: [wd(4, 1), wd(6, 1)] }),
+    );
+    expect(o.calculation.rule4.bands).toHaveLength(2);
+    expect(o.calculation.rule4.weakestConfidence).toBe("consensus-only");
+  });
+
+  it("reports computed-confirmed when EVERY band is computed-confirmed", () => {
+    const o = settled(bet(), race({ announcedRule4Pence: null, withdrawals: [wd(4, 1)] }));
+    expect(o.calculation.rule4.weakestConfidence).toBe("computed-confirmed");
+  });
+
+  it("reports NO confidence at all when no band was consulted", () => {
+    // No withdrawals means no band was used, and "computed-confirmed" would be
+    // a claim about evidence that was never looked at.
+    const o = settled(bet(), race({ announcedRule4Pence: null, withdrawals: [] }));
+    expect(o.calculation.rule4.bands).toEqual([]);
+    expect(o.calculation.rule4.weakestConfidence).toBeNull();
+    expect(o.calculation.rule4.applied).toBe(false);
+  });
+
+  it("does not mark Rule 4 'applied' when the band table returns a ZERO deduction", () => {
+    // A horse withdrawn at a very long price deducts nothing. The band was
+    // consulted and the answer was zero, which is not the same as a deduction
+    // having been applied — `> 0` vs `>= 0`.
+    const o = settled(
+      bet(),
+      race({ announcedRule4Pence: null, withdrawals: [wd(100, 1)] }),
+    );
+    expect(o.calculation.rule4.bands).toHaveLength(1);
+    expect(o.calculation.rule4.totalPence).toBe(0);
+    expect(o.calculation.rule4.applied).toBe(false);
+    expect(o.calculation.rule4.weakestConfidence).not.toBeNull();
+  });
+});
+
+describe("VOID explains WHICH rule voided the bet", () => {
+  it("names the runner when the horse did not run", () => {
+    const o = settled(bet(), race(), runner({ status: "NON_RUNNER" }));
+    expect(o.status).toBe("VOID");
+    expect(o.calculation.rulesApplied.join(" ")).toMatch(
+      /runner\.status=NON_RUNNER -> VOID/,
+    );
+  });
+
+  it("names the runner when the horse was a reserve that did not get in", () => {
+    const o = settled(bet(), race(), runner({ status: "RESERVE" }));
+    expect(o.status).toBe("VOID");
+    expect(o.calculation.rulesApplied.join(" ")).toMatch(/runner\.status=RESERVE -> VOID/);
+  });
+
+  it.each(["VOID", "ABANDONED", "POSTPONED"] as const)(
+    "names the RACE when the race did not happen (%s), not the runner",
+    (status) => {
+      const o = settled(bet(), race({ status }), runner());
+      expect(o.status).toBe("VOID");
+      const rules = o.calculation.rulesApplied.join(" ");
+      // The distinction matters to the reader: "your horse was withdrawn" and
+      // "the meeting was abandoned" are different explanations for the same
+      // refund.
+      expect(rules).toMatch(new RegExp(`race\\.status=${status} -> VOID`));
+      expect(rules).not.toMatch(/runner\.status=/);
+    },
+  );
+});
+
+describe("place terms: enhanced vs standard", () => {
+  const ew = bet({ type: "EACH_WAY", unitStakeMinor: 1000n, totalStakeMinor: 2000n });
+
+  it("uses the STANDARD table when no enhanced terms are offered", () => {
+    const o = settled(
+      ew,
+      race({ actualRunners: 10, isHandicap: false, enhancedPlaces: null, enhancedFractionDen: null }),
+      runner({ finishPosition: 3 }),
+    );
+    const place = o.calculation.parts.find((p) => p.part === "PLACE");
+    expect(place?.placeTermsSource).toBe("standard");
+    expect(place?.placesPaid).toBe(3);
+    expect(place?.placeFractionDen).toBe(5);
+  });
+
+  it("uses ENHANCED terms verbatim when both fields are set", () => {
+    const o = settled(
+      ew,
+      race({ actualRunners: 10, isHandicap: false, enhancedPlaces: 5, enhancedFractionDen: 4 }),
+      runner({ finishPosition: 5 }),
+    );
+    const place = o.calculation.parts.find((p) => p.part === "PLACE");
+    expect(place?.placeTermsSource).toBe("enhanced");
+    expect(place?.placesPaid).toBe(5);
+    expect(place?.placeFractionDen).toBe(4);
+    // Fifth place pays under enhanced terms and would have lost under standard.
+    expect(place?.outcome).toBe("won");
+  });
+
+  it.each([
+    ["places without a fraction", { enhancedPlaces: 5, enhancedFractionDen: null }],
+    ["a fraction without places", { enhancedPlaces: null, enhancedFractionDen: 4 }],
+  ])("ignores half an override (%s) and falls back to the table", (_label, enhanced) => {
+    // docs/08 D18: both or neither. Half an override is not a term, and taking
+    // one field with the other defaulted would silently invent a place term.
+    const o = settled(
+      ew,
+      race({ actualRunners: 10, isHandicap: false, ...enhanced }),
+      runner({ finishPosition: 3 }),
+    );
+    const place = o.calculation.parts.find((p) => p.part === "PLACE");
+    expect(place?.placeTermsSource).toBe("standard");
+    expect(place?.placesPaid).toBe(3);
+  });
+});
+
+describe("the PLACE part says why it lost", () => {
+  const ew = bet({ type: "EACH_WAY", unitStakeMinor: 1000n, totalStakeMinor: 2000n });
+
+  it("says 'unplaced/DNF' when the horse has no finishing position", () => {
+    const o = settled(ew, race({ actualRunners: 10 }), runner({ finishPosition: null }));
+    // "finished null" would be a bug on screen; a horse that did not complete
+    // has no position, and saying so is the whole point of the explanation.
+    expect(o.calculation.rulesApplied.join(" ")).toContain("PLACE: finished unplaced/DNF");
+  });
+
+  it("gives the finishing position when the horse finished but out of the places", () => {
+    const o = settled(ew, race({ actualRunners: 10 }), runner({ finishPosition: 7 }));
+    const rules = o.calculation.rulesApplied.join(" ");
+    expect(rules).toContain("PLACE: finished 7");
+    expect(rules).not.toContain("unplaced/DNF");
+  });
+});
+
+
+describe("roundHalfUp — the single rounding rule, tested directly", () => {
+  const r = (num: bigint, den: bigint) => ({ num, den });
+
+  it("rounds down below the halfway point", () => {
+    expect(roundHalfUp(r(149n, 100n))).toBe(1n);
+    expect(roundHalfUp(r(1n, 3n))).toBe(0n);
+  });
+
+  it("rounds UP exactly on the halfway point — ties go to the user", () => {
+    // .claude/rules/money.md: "half-up, resolving ties in the user's favour."
+    // Banker's rounding, or rounding a tie down, quietly costs the user a penny
+    // on every dead-heat share that lands on a half.
+    expect(roundHalfUp(r(1n, 2n))).toBe(1n);
+    expect(roundHalfUp(r(3n, 2n))).toBe(2n);
+    expect(roundHalfUp(r(4063n, 2n))).toBe(2032n);
+  });
+
+  it("rounds up above the halfway point", () => {
+    expect(roundHalfUp(r(151n, 100n))).toBe(2n);
+  });
+
+  it("leaves exact values alone", () => {
+    expect(roundHalfUp(r(500n, 1n))).toBe(500n);
+    expect(roundHalfUp(r(1000n, 10n))).toBe(100n);
+    expect(roundHalfUp(r(0n, 7n))).toBe(0n);
+  });
+
+  it("is exact far beyond the range a double can represent", () => {
+    // The whole reason returns are carried as bigint rationals. As a double,
+    // this numerator loses its last digits and the answer is off by pennies.
+    const huge = 9_007_199_254_740_993n; // 2^53 + 1
+    expect(roundHalfUp(r(huge * 2n + 1n, 2n))).toBe(huge + 1n);
+  });
+
+  it.each([0n, -1n, -100n])("REFUSES a denominator of %s", (den) => {
+    // Unreachable from settle(), where every denominator is positive by
+    // construction. Left in and tested here because the failure it prevents —
+    // a division by zero producing a nonsense payout — is silent.
+    expect(() => roundHalfUp(r(100n, den))).toThrow(/non-positive denominator/);
   });
 });

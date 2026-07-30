@@ -1,125 +1,153 @@
-# Mutation survivors — `src/modules/settlement/`
+# Mutation gates — `src/modules/settlement/`
 
-**Two gates, per `docs/08` D24.** One number hid two different problems: 77 of
-141 survivors were prose, 46 were payout-deciding branch conditions.
+**Two gates, per `docs/08` D24.** One number hid two different problems: most
+survivors were prose, but the ones that mattered were payout-deciding branch
+conditions, and a single percentage let the second hide behind the first.
 
 | Gate | Scope | Bar | Command |
 |---|---|---|---|
 | **A** | arithmetic + branch mutants | **100%, no waivers** | `pnpm mutation:a` |
-| **B** | StringLiteral + Regex | no score — snapshots | `pnpm mutation:b` |
+| **B** | StringLiteral + Regex | snapshots, not a score | `pnpm mutation:b` |
 
-Stryker 9.6.1 · scoped to `src/modules/settlement/` · last measured 2026-07-30
+Stryker 9.6.1 · scoped to `src/modules/settlement/` · measured 2026-07-30
 
-## Gate A — payout-deciding mutants
+## Result
 
-| File | Score | Survived |
+| Gate | Score | Killed | Survived | No coverage |
+|---|---|---|---|---|
+| **A** | **100.00%** | 709 | **0** | 0 |
+| **B** | **100.00%** | 234 | **0** | 0 |
+
+Per file, both gates:
+
+| File | Gate A | Gate B |
 |---|---|---|
-| `rules/fraction.ts` | **100.00%** | 0 |
-| `rules/placeTerms.ts` | 97.06% | 2 |
-| `rules/rule4.ts` | 95.71% | 3 |
-| `settle.ts` | 83.19% | 59 |
-| **All** | **87.38%** | **64** |
+| `rules/fraction.ts` | 100.00% | 100.00% |
+| `rules/placeTerms.ts` | 100.00% | 100.00% |
+| `rules/rule4.ts` | 100.00% | 100.00% |
+| `read.ts` | 100.00% | n/a — no string literals |
+| `schema.ts` | 100.00% | 100.00% |
+| `settle.ts` | 100.00% | 100.00% |
+| `settleRace.ts` | 100.00% | 100.00% |
 
-Separating the gates immediately sharpened the picture the combined number
-blurred: the rule tables are at 96-100% and `settle.ts` carries 59 of the 64
-survivors. Under the combined score that read as a uniform 78.61%.
-
----
-
-## Combined score (no longer a gate — kept for continuity)
-
-## Score
-
-| File | Score | Killed | Survived |
-|---|---|---|---|
-| `rules/fraction.ts` | **100.00%** | 21 | 0 |
-| `rules/placeTerms.ts` | 86.42% | 70 | 10 |
-| `rules/rule4.ts` | 73.98% | 91 | 32 |
-| `settle.ts` | 77.48% | 351 | 99 |
-| **All files** | **78.61%** | **533** | **141** |
-
-**The `docs/05` §8 gate is ≥90%. It is NOT met.** `stryker.config.json` sets
-`thresholds.break: 90`, so `pnpm mutation` exits 1 today. That is deliberate —
-the gate should fail while it is unmet.
+**`docs/08` D13 is satisfied without waivers: there are no survivors to
+record.** That is the only honest way to close it — the requirement is that
+every survivor is individually reviewed and classified, and an empty set is the
+one case where that is trivially complete.
 
 ### History
 
-| When | Score | What changed |
+| When | Gate A | What changed |
 |---|---|---|
-| first run | 49.85% | Stryker installed. `settle.ts` at 34.4%. |
-| after `settle.test.ts` | **78.61%** | 52 tests asserting the calculation object. `settle.ts` 34.4% → 77.5%. |
+| first run (combined) | 49.85% | Stryker installed. `settle.ts` at 34.4%. |
+| after `settle.test.ts` | 78.61% | 52 tests asserting the calculation object. |
+| gates split (D24) | 87.38% | Gate A isolated. 64 survivors, 59 in `settle.ts`. |
+| after S12 worker tests | 95.24% | `settleRace.ts` reached 96%. |
+| **Step 9** | **100.00%** | Below. |
 
-The first run is the interesting number. The engine already passed 29
+The first run is still the interesting number. The engine already passed 29
 third-party vectors and 11 metamorphic properties, and **half its mutants
-still survived** — because every one of those tests asserts only the final
-figure. `docs/04` §7 calls the calculation object "the feature that ends
-disputes" and S14 renders it directly, and nothing constrained its contents.
-Stryker found that before any human did. That is the argument for `docs/08`
-D13 in one measurement.
+survived** — because every one of those tests asserted only the final figure.
+`docs/04` §7 calls the calculation object "the feature that ends disputes" and
+S14 renders it directly; nothing constrained its contents. Stryker found that
+before any human did.
 
-## Survivors by mutator
+---
 
-| Mutator | Count | Share |
-|---|---|---|
-| StringLiteral | 77 | 55% |
-| ConditionalExpression | 30 | 21% |
-| EqualityOperator | 16 | 11% |
-| BooleanLiteral | 4 | 3% |
-| ArrayDeclaration | 4 | 3% |
-| LogicalOperator | 3 | 2% |
-| ArithmeticOperator | 3 | 2% |
-| ObjectLiteral | 2 | 1% |
+## What closing Gate A actually required
 
-## Review status — INCOMPLETE
+Four of the last survivors were not missing tests. They were **code that could
+not be wrong**, which a mutation gate correctly refuses to accept.
 
-`docs/08` D13 requires **every** survivor individually reviewed and recorded as
-either a missing vector or a justified equivalent mutant. That review is **not
-finished**: 141 survivors are categorised below by cluster, not one by one.
-Recording the aggregate and saying so is the honest position; claiming the
-review is done would be the exact failure D13 exists to prevent.
+### 1. Two rule-table guards that the row order made unreachable
 
-### Cluster A — prose in `rulesApplied` and error messages (~77, all StringLiteral)
+`lookupRule4Band` checks `fromExclusive` on row 19 ("over 14/1"). `lookupPlaceTerms`
+checks `actualRunners < row.minRunners`. Against the shipped tables, **neither
+can ever fire**: row 18 ("10/1 - 14/1") is checked before row 19, and the
+place-terms rows ascend contiguously from 1. Nothing could distinguish either
+guard from its own absence.
 
-`settle.ts` L66–L102 and `rule4.ts` L316, L333–336 are `RangeError` text,
-refusal `reason` text, and the human-readable `rulesApplied` entries.
+Both guards exist to make the lookup **order-independent**. That is a real
+property worth having — `docs/08` records a ten-row *ordering* error in this
+very table — but it was an untested assumption.
 
-**Mostly equivalent for money**: mutating the wording of a refusal reason
-changes no payout. **But not entirely** — these strings are the settlement
-detail view (S14) and the review queue. A mutant that empties a refusal reason
-ships a blank explanation to a user asking why they were not paid.
+Fix: both lookups now take the table as a defaulted parameter, and the tests
+search a **reversed** table and assert an identical answer for every published
+bound. The guards are exercised for real, and order-independence is now a
+verified property rather than a hope. Production never passes the parameter.
 
-**Verdict: not equivalent, genuinely under-tested.** They need assertions on
-the *content* of the explanation, not just its presence. Several already have
-them (`toMatch(/VOID, full refund/)`); most do not.
+### 2. A dead null-check in `resolveRule4`
 
-### Cluster B — branch conditions (30 ConditionalExpression + 16 EqualityOperator)
+`bands.length > 0 ? "computed-confirmed" : null` — `bands` is provably
+non-empty at that point, because the `withdrawn.length === 0` early return
+above means the loop ran at least once. Removed. A branch that reads as a
+safety check while being unreachable is worse than no check: it implies a case
+that cannot happen.
 
-The ones that matter. `rule4.ts` L322–323 is the band-boundary comparison —
-`fromExclusive` handling and the `>=` vs `>` at a band edge. `placeTerms.ts`
-L137/L143 is the row-matching loop.
+### 3. A dead `isReversal` flag in `creditReturn`
 
-**Verdict: real gaps.** A surviving `>=` → `>` at a band boundary means a price
-sitting exactly on a published bound is unconstrained, and the boundaries are
-precisely where `docs/05` says the bugs live. `rule4.test.ts` asserts all 35
-published bounds, so some of these are likely mutants on *unreachable*
-combinations — but that has to be checked mutant by mutant, and has not been.
+Reversals post their own compensating entries in `reversePriorSettlement` and
+never route through `creditReturn`, so its negative arm was unreachable code
+pretending to be a safeguard. Parameter removed.
 
-### Cluster C — `ArrayDeclaration`, `ObjectLiteral`, `BooleanLiteral` (10)
+### 4. Guards genuinely unreachable through the public path
 
-`bands: []` → `["Stryker was here"]` survives when no withdrawal exists.
-`cappedAt90: false` survives where the cap is untested for that path.
+`roundHalfUp`'s non-positive-denominator check, and the runner-status and
+withdrawal-fraction guards in the row mappers, cannot be reached through
+`settle()` or `settleRace()` — the database's CHECK constraints forbid the rows
+that would trigger them. They are worth keeping: each prevents a *silent*
+failure (a division by zero producing a nonsense payout; a `status: undefined`
+comparing false against every literal and settling a withdrawn horse as a
+normal runner).
 
-**Verdict: under-tested, cheap to fix.** Assert the empty cases explicitly
-rather than only the populated ones.
+Fix: `roundHalfUp`, `toSettlementRace` and `toSettlementRunner` are exported and
+tested directly. An untested guard is a guess about behaviour nobody has run.
 
-## What to do next
+### 5. A real drift risk the gate exposed
 
-1. Assert `rulesApplied` content and refusal `reason` content per branch —
-   kills most of cluster A and improves the user-facing explanation at the
-   same time.
-2. Walk cluster B mutant by mutant. Each is either a missing boundary case or
-   provably unreachable; record which, per D13.
-3. Re-run and record the new score here.
+`schema.ts`'s constraint declarations had no test at all — the drizzle literal
+only feeds `drizzle-kit generate`, while the constraints that exist come from
+the applied migration. The declaration could have lost the idempotence unique
+index and every test would have stayed green, because the database still had
+the one an earlier migration created. `schema.db.test.ts` now asserts both
+halves and that they agree, including the two foreign keys migration 0014 adds
+by hand.
 
-Until then the Phase 0 gate criterion "mutation score ≥90%, every survivor
-recorded" is **unmet on both halves**.
+---
+
+## Gate B — snapshots, deliberately not a score
+
+`docs/08` D24 says Gate B is constrained by snapshot assertions rather than by a
+percentage, and the reason matters: **a score target on wording rewards
+asserting that strings are non-empty**, which pins nothing and reads as
+coverage. That is the exact failure mode D13 exists to prevent, one level up.
+
+`tests/snapshots/explanations.test.ts` pins the full `rulesApplied` array, the
+refusal reason and detail, and every programmer-error message, across 28
+scenarios — clean win, clean loss, non-runner, reserve, three race-level void
+states, disqualification, each-way placed in both handicap and non-handicap,
+unplaced, outside the places, no-places fields, two- and three-way dead heats,
+announced and band-table Rule 4, the 90p cap, enhanced terms, and all three
+refusals.
+
+Every one of those strings is rendered on the settlement detail screen. A
+reworded explanation is not a bug, but it **is** a change to what the product
+tells a user about their money. A snapshot makes changing one a deliberate act
+in front of a reviewer rather than a side effect.
+
+Adding the snapshots took Gate B from 86.32% to 97.44% on its own. The last six
+were closed with ordinary assertions that were worth having regardless — the
+Rule 4 `source` label, the disputed-band string, the place part's three outcome
+labels, the error type's `name`, and two refusal `detail` messages that named
+nothing a log reader could act on.
+
+**The score is reported for information. The gate is the snapshots.**
+
+## Running them
+
+```bash
+pnpm mutation:a   # breaks below 100
+pnpm mutation:b   # reports; not score-gated
+```
+
+`pnpm verify` runs both. `pnpm verify:fast` skips them.

@@ -52,8 +52,15 @@ function addRationals(a: Rational, b: Rational): Rational {
   return { num: a.num * b.den + b.num * a.den, den: a.den * b.den };
 }
 
-/** Half-up, ties in the user's favour. Returns are non-negative. */
-function roundHalfUp(r: Rational): bigint {
+/**
+ * Half-up, ties in the user's favour. Returns are non-negative.
+ *
+ * Exported for testing. Every denominator reaching it from settle() is
+ * positive by construction, so its guard cannot be exercised through the
+ * public path — and a rounding rule this load-bearing should be assertable
+ * directly rather than only through a payout.
+ */
+export function roundHalfUp(r: Rational): bigint {
   if (r.den <= 0n) {
     throw new Error(`non-positive denominator ${r.den}`);
   }
@@ -162,13 +169,19 @@ function resolveRule4(
   const capped = total > 90;
   const totalPence = capped ? 90 : total;
 
-  const weakest: EvidenceConfidence | null = bands.some(
+  // `bands` is non-empty here: the `withdrawn.length === 0` return above means
+  // the loop ran at least once, and every iteration either pushes a band or
+  // returns a refusal. A `bands.length > 0 ? ... : null` arm was therefore dead
+  // — it read as a null-safety check while being unreachable, which is worse
+  // than no check at all because it implies a case that cannot happen.
+  //
+  // The WEAKEST confidence, not the strongest: one well-evidenced band must not
+  // launder a poorly-evidenced one (docs/08 D21).
+  const weakest: EvidenceConfidence = bands.some(
     (b) => b.evidenceConfidence === "consensus-only",
   )
     ? "consensus-only"
-    : bands.length > 0
-      ? "computed-confirmed"
-      : null;
+    : "computed-confirmed";
 
   return {
     ok: true,

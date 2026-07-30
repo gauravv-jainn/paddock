@@ -1,0 +1,252 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`programmer-error messages > rule table guards 1`] = `
+{
+  "fractionalRunners": "actualRunners must be a positive integer, got 7.5",
+  "halfAnOverride": "enhanced place terms are incomplete: places=6 fractionDen=0",
+  "negativePrice": "price must be positive, got -1/2",
+  "zeroDenominator": "price must be positive, got 1/0",
+  "zeroRunners": "actualRunners must be a positive integer, got 0",
+}
+`;
+
+exports[`programmer-error messages > settle() input guards 1`] = `
+{
+  "announcedOutOfRange": "announced Rule 4 must be 0-90 pence, got 91",
+  "eachWayStakeMismatch": "EACH_WAY total stake must be twice the unit stake",
+  "oddsAtOne": "oddsTaken must exceed 1, got 1",
+  "winStakeMismatch": "WIN/PLACE total stake must equal the unit stake",
+  "zeroStake": "stake must be positive, got 0",
+}
+`;
+
+exports[`programmer-error messages > the between-bands refusal reason 1`] = `"37/12 falls between two published bands. The Tattersalls scale is defined over rungs of the fractional ladder and does not describe this price; assuming the neighbouring band would be a guess, and assuming zero would pay out in full on a race that owed a deduction (docs/08 D14)."`;
+
+exports[`prose carried in the calculation's structured fields > labels the Rule 4 source 'none' when nothing was announced or looked up 1`] = `
+{
+  "applied": false,
+  "source": "none",
+  "weakestConfidence": null,
+}
+`;
+
+exports[`prose carried in the calculation's structured fields > marks the place part 'void' when the field pays no places 1`] = `
+[
+  "won",
+  "void",
+]
+`;
+
+exports[`prose carried in the calculation's structured fields > spells out a DISPUTED Rule 4 band's competing published values 1`] = `"16/5 (4 sources, adopted) / 100/30 (1) / 16/15 (1, out of sequence)"`;
+
+exports[`refusal explanations — what the review queue is told > missing actual_runners on an each-way bet 1`] = `
+{
+  "detail": "place terms are a function of the runners that actually started; settling without it would guess how many places were paid",
+  "reason": "MISSING_ACTUAL_RUNNERS",
+  "rulesApplied": [
+    "REFUSED: actual_runners is null, so no place-terms row can be selected",
+  ],
+}
+`;
+
+exports[`refusal explanations — what the review queue is told > price between two published bands (D14) 1`] = `
+{
+  "detail": "37/12 falls between two published bands. The Tattersalls scale is defined over rungs of the fractional ladder and does not describe this price; assuming the neighbouring band would be a guess, and assuming zero would pay out in full on a race that owed a deduction (docs/08 D14).",
+  "reason": "RULE4_PRICE_NOT_ON_LADDER",
+  "rulesApplied": [
+    "REFUSED: Rule 4 could not be resolved (docs/08 D14, D17)",
+  ],
+}
+`;
+
+exports[`refusal explanations — what the review queue is told > withdrawn runner with no fractional price (D17) 1`] = `
+{
+  "detail": "a withdrawn runner carries no fractional price — its deduction cannot be looked up, and assuming zero would pay out in full on a race that owed a deduction",
+  "reason": "AMBIGUOUS_WITHDRAWAL",
+  "rulesApplied": [
+    "REFUSED: Rule 4 could not be resolved (docs/08 D14, D17)",
+  ],
+}
+`;
+
+exports[`settlement explanations > Rule 4 capped at 90p 1`] = `
+{
+  "rulesApplied": [
+    "WIN: 1st, no dead heat",
+    "Rule 4: 90p in the £ on winnings only, after the dead-heat divisor (money.md step 6) — capped at 90p",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > Rule 4 from the band table 1`] = `
+{
+  "rulesApplied": [
+    "WIN: 1st, no dead heat",
+    "Rule 4: 20p in the £ on winnings only, after the dead-heat divisor (money.md step 6)",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > announced Rule 4 deduction 1`] = `
+{
+  "rulesApplied": [
+    "WIN: 1st, no dead heat",
+    "Rule 4: 25p in the £ on winnings only, after the dead-heat divisor (money.md step 6)",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > clean loss 1`] = `
+{
+  "rulesApplied": [
+    "WIN: finished 6 -> lost",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > clean win 1`] = `
+{
+  "rulesApplied": [
+    "WIN: 1st, no dead heat",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > dead heat for the final paid place 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 16 runners, handicap -> 4 place(s) at 1/4 (standard)",
+    "WIN: finished 4 -> lost",
+    "PLACE: finished 4 of 4 paid -> won, 2-way dead heat with 1 position(s) available -> stake x 1/2",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > disqualification 1`] = `
+{
+  "rulesApplied": [
+    "runner.disqualified -> LOST (money.md step 2)",
+  ],
+}
+`;
+
+exports[`settlement explanations > each-way outside the paid places 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 10 runners, non-handicap -> 3 place(s) at 1/5 (standard)",
+    "WIN: finished 7 -> lost",
+    "PLACE: finished 7 outside 3 paid -> lost",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > each-way placed in a handicap — the 1/4 fraction 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 16 runners, handicap -> 4 place(s) at 1/4 (standard)",
+    "WIN: finished 4 -> lost",
+    "PLACE: finished 4 of 4 paid -> won",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > each-way placed in a non-handicap 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 10 runners, non-handicap -> 3 place(s) at 1/5 (standard)",
+    "WIN: finished 3 -> lost",
+    "PLACE: finished 3 of 3 paid -> won",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > each-way unplaced — 'unplaced/DNF' 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 10 runners, non-handicap -> 3 place(s) at 1/5 (standard)",
+    "WIN: finished unplaced/DNF -> lost",
+    "PLACE: finished unplaced/DNF outside 3 paid -> lost",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > enhanced place terms 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 10 runners, non-handicap -> 5 place(s) at 1/4 (enhanced)",
+    "WIN: finished 5 -> lost",
+    "PLACE: finished 5 of 5 paid -> won",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > field pays no places at all 1`] = `
+{
+  "rulesApplied": [
+    "place terms: 4 runners, non-handicap -> 0 place(s) at 1/0 (standard)",
+    "WIN: 1st, no dead heat",
+    "PLACE: 4 runners pays no places -> VOID, stake refunded",
+    "each part rounded once at the end of its own computation, then summed (money.md step 7, docs/05 §3.3)",
+  ],
+}
+`;
+
+exports[`settlement explanations > non-runner voids 1`] = `
+{
+  "rulesApplied": [
+    "runner.status=NON_RUNNER -> VOID, full refund (money.md step 1)",
+  ],
+}
+`;
+
+exports[`settlement explanations > race ABANDONED voids 1`] = `
+{
+  "rulesApplied": [
+    "race.status=ABANDONED -> VOID, full refund (docs/05 §7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > race POSTPONED voids 1`] = `
+{
+  "rulesApplied": [
+    "race.status=POSTPONED -> VOID, full refund (docs/05 §7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > race VOID voids 1`] = `
+{
+  "rulesApplied": [
+    "race.status=VOID -> VOID, full refund (docs/05 §7)",
+  ],
+}
+`;
+
+exports[`settlement explanations > reserve voids 1`] = `
+{
+  "rulesApplied": [
+    "runner.status=RESERVE -> VOID, full refund (money.md step 1)",
+  ],
+}
+`;
+
+exports[`settlement explanations > three-way dead heat for the win 1`] = `
+{
+  "rulesApplied": [
+    "WIN: 1st, 3-way dead heat -> stake x 1/3 (money.md step 5)",
+    "rounded once, at the end (money.md step 7)",
+  ],
+}
+`;

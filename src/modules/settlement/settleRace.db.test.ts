@@ -369,14 +369,26 @@ describe.skipIf(!url)("settleRace against PostgreSQL", () => {
 
     const result = await settleRace(raceId, PAYLOAD_HASH);
     expect(result.kind).toBe("REFUSED");
-    if (result.kind === "REFUSED") expect(result.reason).toBe("RACE_HAS_NO_RESULT");
+    if (result.kind === "REFUSED") {
+      expect(result.reason).toBe("RACE_HAS_NO_RESULT");
+      // Names the status it actually found. "Cannot settle" without saying
+      // what state the race is in sends whoever reads the log back to the
+      // database to find out.
+      expect(result.detail).toBe("race status is 'open'; nothing to settle against");
+    }
     expect(await db.select().from(settlements)).toHaveLength(0);
   });
 
-  it("refuses an unknown race", async () => {
-    const result = await settleRace(randomUUID(), PAYLOAD_HASH);
+  it("refuses an unknown race and says which one", async () => {
+    const missing = randomUUID();
+    const result = await settleRace(missing, PAYLOAD_HASH);
     expect(result.kind).toBe("REFUSED");
-    if (result.kind === "REFUSED") expect(result.reason).toBe("RACE_NOT_FOUND");
+    if (result.kind === "REFUSED") {
+      expect(result.reason).toBe("RACE_NOT_FOUND");
+      // The id, not a bare "not found": a worker draining a queue of races
+      // logs this, and one without the id names nothing.
+      expect(result.detail).toBe(`no race ${missing}`);
+    }
   });
 
   it("rejects a payload hash that is not a sha256 digest", async () => {
@@ -385,6 +397,11 @@ describe.skipIf(!url)("settleRace against PostgreSQL", () => {
     // an unreplayable settlement cannot end a dispute.
     await expect(settleRace(raceId, "not-a-hash")).rejects.toThrow(TypeError);
     await expect(settleRace(raceId, "A".repeat(64))).rejects.toThrow(TypeError);
+    // The message names the offending value: a bare TypeError from a worker
+    // processing a queue of races says nothing about which race failed.
+    await expect(settleRace(raceId, "not-a-hash")).rejects.toThrow(
+      /payloadHash must be a sha256 hex digest, got 'not-a-hash'/,
+    );
   });
 
   it("settles an each-way bet across both parts", async () => {
@@ -487,5 +504,82 @@ describe.skipIf(!url)("settleRace against PostgreSQL", () => {
       .from(settlements)
       .where(and(eq(settlements.betId, placed.id), eq(settlements.isReversal, false)));
     expect(rows).toHaveLength(1);
+  });
+  it("does not double-pay when it LOSES the insert race for a settlement", async () => {
+    const { raceId, runnerIds } = await makeRace({ finish: { 1: 1 } });
+    const placed = await bet(raceId, runnerIds[1]!);
+    await settleRace(raceId, PAYLOAD_HASH);
+    const paid = await balance();
+
+    // Reproduce exactly what a losing concurrent worker sees: it read the bet
+    // BEFORE the winner committed, so its settled_version is still null, but
+    // the settlement row now exists. Rewinding the bet row reproduces that view
+    // deterministically — Promise.all cannot, because the schedule that
+    // produces it is not something a test can force.
+    await db.execute(sql`
+      update bets set settled_version = null, status = 'open', return_minor = 0,
+                      settled_at = null
+       where id = ${placed.id}::uuid`);
+
+    const second = await settleRace(raceId, PAYLOAD_HASH);
+    if (second.kind !== "DONE") throw new Error(second.detail);
+
+    // The unique index refuses the second insert, so the worker reports the bet
+    // as already settled and — the part that matters — writes NO ledger entry.
+    expect(second.report.bets[0]!.status).toBe("ALREADY_SETTLED");
+    expect(second.report.settled).toBe(0);
+    expect(await balance()).toBe(paid);
+    expect(
+      await db
+        .select()
+        .from(settlements)
+        .where(and(eq(settlements.betId, placed.id), eq(settlements.isReversal, false))),
+    ).toHaveLength(1);
+  });
+  it.each(["void", "abandoned"] as const)(
+    "settles a '%s' race by refunding, rather than refusing it",
+    async (status) => {
+      // SETTLEABLE_RACE_STATUSES carries three values. Only 'result' was
+      // exercised, so two thirds of that set were unconstrained — dropping
+      // either would have silently stopped refunding abandoned meetings.
+      const { raceId, runnerIds } = await makeRace({ finish: { 1: 1 } });
+      await bet(raceId, runnerIds[1]!);
+      const afterStake = await balance();
+      await db.execute(
+        sql`update races set status = ${status} where id = ${raceId}::uuid`,
+      );
+
+      const result = await settleRace(raceId, PAYLOAD_HASH);
+      if (result.kind !== "DONE") throw new Error(result.detail);
+
+      expect(result.report.settled).toBe(1);
+      // The whole stake comes back: the race did not happen.
+      expect(await balance()).toBe(afterStake + 1000n);
+      const rows = await db.select().from(settlements);
+      expect(rows[0]!.outcome).toBe("VOID");
+    },
+  );
+
+  it("tags reversal ledger entries to the bet, so they can be traced", async () => {
+    const { raceId, runnerIds } = await makeRace({ finish: { 1: 1, 2: 2 } });
+    const placed = await bet(raceId, runnerIds[1]!);
+    await settleRace(raceId, PAYLOAD_HASH);
+
+    await db.execute(sql`
+      update runners set disqualified = true where id = ${runnerIds[1]!}::uuid`);
+    await db.execute(sql`
+      update races set result_version = result_version + 1 where id = ${raceId}::uuid`);
+    await settleRace(raceId, "d".repeat(64));
+
+    const entries = await db.execute<{ ref_type: string; ref_id: string; memo: string | null }>(
+      sql`select ref_type, ref_id::text, memo from ledger_entries
+           where entry_type = 'REVERSAL'`,
+    );
+    expect(entries).toHaveLength(2);
+    // Untagged reversal entries would be unattributable in the ledger — a
+    // clawback nobody could explain to the user it came from.
+    expect(entries.every((e) => e.ref_type === "bet")).toBe(true);
+    expect(entries.every((e) => e.ref_id === placed.id)).toBe(true);
+    expect(entries.some((e) => (e.memo ?? "").includes("result_version"))).toBe(true);
   });
 });
